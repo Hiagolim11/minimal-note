@@ -945,8 +945,10 @@ const COMMANDS = [
   { id: 'reload', name: 'Recarregar cofre', icon: 'refresh', run: () => refreshVault().then(() => toast('Cofre recarregado')) },
   { id: 'font-up', name: 'Aumentar fonte', icon: 'type', key: 'Ctrl +', run: () => setSetting('fontSize', Math.min(26, S.settings.fontSize + 1)) },
   { id: 'font-down', name: 'Diminuir fonte', icon: 'type', key: 'Ctrl -', run: () => setSetting('fontSize', Math.max(11, S.settings.fontSize - 1)) },
-  ...Object.entries(THEMES).map(([k, t]) => ({ id: 'theme-' + k, name: `Tema: ${t.name}`, icon: 'palette', run: () => { setSetting('theme', k); setSetting('accent', null); } })),
+  { id: 'theme-creator', name: 'Criador de temas', icon: 'wand', run: () => openSettings('creator') },
+  { id: 'theme-new', name: 'Criar novo tema', icon: 'wand', run: () => { tcNew(); openSettings('creator'); } },
 ];
+const themeCommands = () => Object.entries(allThemes(S.settings)).map(([k, t]) => ({ id: 'theme-' + k, name: `Tema: ${t.name}`, icon: 'palette', run: () => { S.settings.accent = null; setSetting('theme', k); } }));
 
 const PAL = { items: [], sel: 0 };
 function openPalette(prefix = '') {
@@ -964,7 +966,7 @@ function renderPalette() {
   PAL.items = []; PAL.sel = 0;
   if (raw.startsWith('>')) {
     const q = raw.slice(1).trim();
-    const scored = COMMANDS.map((c) => ({ c, f: fuzzy(q, c.name) })).filter((x) => x.f).sort((a, b) => b.f.score - a.f.score);
+    const scored = [...COMMANDS, ...themeCommands()].map((c) => ({ c, f: fuzzy(q, c.name) })).filter((x) => x.f).sort((a, b) => b.f.score - a.f.score);
     PAL.items = scored.map(({ c, f }) => ({ run: c.run, html: `<span class="pl-icon">${icon(c.icon, 17)}</span><span class="pl-main">${hlIdx(c.name, f.idx)}</span>${c.key ? `<kbd>${c.key}</kbd>` : ''}` }));
   } else {
     const q = raw.trim();
@@ -1012,6 +1014,7 @@ function bindPalette() {
 // ---------- configurações (modal) ----------
 const SECTIONS = [
   { id: 'appearance', name: 'Aparência', icon: 'palette' },
+  { id: 'creator', name: 'Criador de temas', icon: 'wand' },
   { id: 'typography', name: 'Tipografia', icon: 'type' },
   { id: 'editor', name: 'Editor', icon: 'edit' },
   { id: 'vault', name: 'Cofre e arquivos', icon: 'vault' },
@@ -1023,11 +1026,12 @@ let curSection = 'appearance';
 
 function openSettings(section) {
   if (section) curSection = section;
+  if (curSection !== 'creator') tcStopLive();
   $('#settings').hidden = false;
   $('#settings-nav').innerHTML = '<div class="sn-title">Configurações</div>' + SECTIONS.map((s) => `<button data-sec="${s.id}" class="${s.id === curSection ? 'active' : ''}">${icon(s.icon, 17)}<span>${s.name}</span></button>`).join('');
   renderSection();
 }
-function closeSettings() { $('#settings').hidden = true; }
+function closeSettings() { tcStopLive(); $('#settings').hidden = true; }
 
 const row = (label, hint, ctl) => `<div class="set-row"><div class="lbl"><b>${label}</b>${hint ? `<small>${hint}</small>` : ''}</div><div class="ctl">${ctl}</div></div>`;
 const toggleCtl = (key) => `<label class="toggle"><input type="checkbox" data-key="${key}" ${S.settings[key] ? 'checked' : ''}><span></span></label>`;
@@ -1040,10 +1044,10 @@ function renderSection() {
   const c = $('#settings-content');
   const fontOpts = Object.fromEntries(Object.entries(FONTS).map(([k, f]) => [k, f.name]));
   if (curSection === 'appearance') {
-    const t = { ...THEMES[s.theme], ...(s.overrides[s.theme] || {}) };
+    const t = { ...themeOf(s), ...(s.overrides[s.theme] || {}) };
     c.innerHTML = `<h2>Aparência</h2><p class="sub">Temas, cores e efeitos visuais. As mudanças são aplicadas na hora.</p>
-      <div class="set-group"><h4>Tema</h4><div class="theme-grid">${Object.entries(THEMES).map(([k, th]) => `
-        <button class="theme-card${k === s.theme ? ' active' : ''}" data-theme="${k}">
+      <div class="set-group"><h4>Tema</h4><div class="theme-grid">${Object.entries(allThemes(s)).map(([k, th]) => `
+        <button class="theme-card${k === s.theme ? ' active' : ''}${s.customThemes[k] ? ' custom' : ''}" data-theme="${k}">${s.customThemes[k] ? `<span class="tc-badge" data-edit-theme="${k}" title="Editar no criador">${icon('edit', 13)}</span>` : ''}
           <div class="tc-prev" style="background:${th.bg}">
             <div class="tc-side" style="background:${th.bg2}"></div>
             <div class="tc-main" style="background:${th.bg3}">
@@ -1052,15 +1056,16 @@ function renderSection() {
               <div class="tc-line" style="background:${th.accent};width:40%"></div>
             </div>
           </div>
-          <div class="tc-name" style="background:${th.bg2};color:${th.text}"><span>${th.name}</span><span style="opacity:.6;font-weight:500">${th.dark ? 'Escuro' : 'Claro'}</span></div>
-        </button>`).join('')}</div></div>
+          <div class="tc-name" style="background:${th.bg2};color:${th.text}"><span>${esc(th.name)}</span><span style="opacity:.6;font-weight:500">${th.dark ? 'Escuro' : 'Claro'}</span></div>
+        </button>`).join('')}
+        <button class="theme-card new-theme" id="tc-open-creator"><div class="nt-inner">${icon('wand', 22)}<span>Criar tema</span></div></button></div></div>
       <div class="set-group"><h4>Cor de destaque</h4>
         <div class="swatches">
           <button class="swatch auto${!s.accent ? ' active' : ''}" data-accent="" title="Cor do tema"></button>
           ${ACCENTS.map((a) => `<button class="swatch${s.accent === a ? ' active' : ''}" data-accent="${a}" style="background:${a}" title="${a}"></button>`).join('')}
           <input type="color" class="color-input" id="accent-custom" value="${s.accent || t.accent}" title="Cor personalizada">
         </div></div>
-      <div class="set-group"><h4>Personalizar cores do tema “${THEMES[s.theme].name}”</h4>
+      <div class="set-group"><h4>Ajustar cores do tema “${esc(themeOf(s).name)}”</h4>
         <div class="color-overrides">${[['bg', 'Fundo'], ['bg2', 'Barras laterais'], ['bg3', 'Elementos'], ['border', 'Bordas'], ['text', 'Texto'], ['muted', 'Texto secundário']].map(([k, l]) =>
           `<label class="co-item"><input type="color" class="color-input" data-override="${k}" value="${String(t[k]).slice(0, 7)}">${l}</label>`).join('')}</div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="reset-overrides">Restaurar cores do tema</button><button class="btn" id="export-theme">${icon('copy', 15)}Copiar tema (JSON)</button><button class="btn" id="import-theme">${icon('download', 15)}Importar tema</button></div>
@@ -1073,6 +1078,9 @@ function renderSection() {
         ${row('Animações', '', toggleCtl('animations'))}
         ${row('Faixa de ícones', 'Barra vertical à esquerda.', toggleCtl('ribbon'))}
       </div>`;
+  } else if (curSection === 'creator') {
+    renderCreator(c);
+    return;
   } else if (curSection === 'typography') {
     c.innerHTML = `<h2>Tipografia</h2><p class="sub">Fontes e medidas do texto.</p>
       <div class="set-group">
@@ -1110,7 +1118,7 @@ function renderSection() {
     const keys = [['Nova nota', 'Ctrl N'], ['Paleta / abrir nota', 'Ctrl P'], ['Comandos', 'Ctrl Shift P'], ['Buscar no cofre', 'Ctrl Shift F'], ['Edição ↔ leitura', 'Ctrl E'], ['Modo dividido', 'Ctrl \\'], ['Grafo', 'Ctrl G'], ['Nota diária', 'Ctrl Shift D'], ['Fechar aba', 'Ctrl W'], ['Próxima aba', 'Ctrl Tab'], ['Salvar agora', 'Ctrl S'], ['Configurações', 'Ctrl ,'], ['Modo foco', 'F11'], ['Negrito / itálico', 'Ctrl B / Ctrl I'], ['Link', 'Ctrl K'], ['Tarefa', 'Ctrl L'], ['Riscado', 'Ctrl Shift X'], ['Destaque', 'Ctrl Shift H'], ['Indentar', 'Tab / Shift Tab'], ['Fonte maior / menor', 'Ctrl + / Ctrl −']];
     c.innerHTML = `<h2>Atalhos</h2><p class="sub">Atalhos de teclado disponíveis.</p><div class="set-group">${keys.map(([a, k]) => row(a, '', `<kbd>${k}</kbd>`)).join('')}</div>`;
   } else {
-    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.0 · notas em Markdown, locais e suas.</p>
+    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.1 · notas em Markdown, locais e suas.</p>
       <p class="sub">${S.notes.size} notas · ${[...S.notes.values()].reduce((a, n) => a + n.words, 0).toLocaleString('pt-BR')} palavras no cofre</p></div>`;
   }
   bindSection();
@@ -1133,7 +1141,11 @@ function bindSection() {
       requestAnimationFrame(() => editor.autosize());
     });
   });
-  c.querySelectorAll('[data-theme]').forEach((b) => b.addEventListener('click', () => { S.settings.accent = null; setSetting('theme', b.dataset.theme); renderSection(); }));
+  c.querySelectorAll('[data-theme]').forEach((b) => b.addEventListener('click', (e) => {
+    if (e.target.closest('[data-edit-theme]')) { tcEdit(b.dataset.theme); curSection = 'creator'; openSettings(); return; }
+    S.settings.accent = null; setSetting('theme', b.dataset.theme); renderSection();
+  }));
+  $('#tc-open-creator', c)?.addEventListener('click', () => { tcNew(); curSection = 'creator'; openSettings(); });
   c.querySelectorAll('[data-accent]').forEach((b) => b.addEventListener('click', () => { setSetting('accent', b.dataset.accent || null); renderSection(); }));
   $('#accent-custom', c)?.addEventListener('input', (e) => { setSetting('accent', e.target.value); c.querySelectorAll('.swatch').forEach((x) => x.classList.remove('active')); });
   c.querySelectorAll('[data-override]').forEach((inp) => inp.addEventListener('input', () => {
@@ -1154,7 +1166,7 @@ function bindSection() {
       const d = JSON.parse(txt);
       const allowed = ['theme', 'accent', 'fontUi', 'fontEditor', 'fontMono', 'fontSize', 'lineHeight', 'radius', 'background', 'glass', 'customCss'];
       allowed.forEach((k) => { if (d[k] !== undefined) S.settings[k] = d[k]; });
-      if (!THEMES[S.settings.theme]) S.settings.theme = 'midnight';
+      if (!allThemes(S.settings)[S.settings.theme]) S.settings.theme = 'midnight';
       if (d.overrides) S.settings.overrides = { ...S.settings.overrides, [S.settings.theme]: d.overrides };
       setSetting('theme', S.settings.theme); renderSection(); toast('Tema importado', 'success');
     } catch { toast('JSON inválido', 'error'); }
@@ -1173,11 +1185,11 @@ async function chooseVault() {
 }
 
 function cycleTheme() {
-  const keys = Object.keys(THEMES);
+  const all = allThemes(S.settings), keys = Object.keys(all);
   const next = keys[(keys.indexOf(S.settings.theme) + 1) % keys.length];
   S.settings.accent = null;
   setSetting('theme', next);
-  toast(`Tema: ${THEMES[next].name}`);
+  toast(`Tema: ${all[next].name}`);
 }
 
 // ---------- exportação ----------
@@ -1287,7 +1299,7 @@ function updateStatus() {
   $('#st-words').textContent = n ? `${n.words.toLocaleString('pt-BR')} palavras` : '';
   $('#st-chars').textContent = n ? `${n.content.length.toLocaleString('pt-BR')} caracteres` : '';
   if (!n) $('#st-cursor').textContent = '';
-  $('#st-theme').innerHTML = `<span class="swatch-dot"></span>${esc(THEMES[S.settings.theme]?.name || '')}`;
+  $('#st-theme').innerHTML = `<span class="swatch-dot"></span>${esc(themeOf(S.settings).name || '')}`;
   if (n) S.lastNote = n.path;
 }
 const wordsSoon = debounce(() => { const n = activeNote(); if (n) { n.words = MD.analyze(n.content).words; updateStatus(); } }, 300);

@@ -74,6 +74,7 @@ const DEFAULT_SETTINGS = {
   theme: 'midnight',
   accent: null, // null = cor do tema
   overrides: {},
+  customThemes: {}, // temas criados no criador de temas
   fontUi: 'inter',
   fontEditor: 'inter',
   fontMono: 'jetbrains',
@@ -120,16 +121,101 @@ function contrastText(hex) {
   return L > 0.45 ? '#111111' : '#ffffff';
 }
 
-function applyAppearance(s) {
-  const t = { ...(THEMES[s.theme] || THEMES.midnight), ...(s.overrides?.[s.theme] || {}) };
-  const accent = s.accent || t.accent;
-  const root = document.documentElement;
-  const set = (k, v) => root.style.setProperty(k, v);
+// ---------- utilidades de cor / temas personalizados ----------
+const THEME_TOKENS = [
+  ['bg', 'Fundo', 'Área principal de escrita'],
+  ['bg2', 'Barras laterais', 'Sidebar, abas e barra de status'],
+  ['bg3', 'Elementos', 'Botões, cartões e campos'],
+  ['border', 'Bordas', 'Divisórias e contornos'],
+  ['text', 'Texto', 'Texto principal'],
+  ['muted', 'Texto secundário', 'Legendas e itens inativos'],
+  ['faint', 'Texto apagado', 'Dicas e marcadores'],
+  ['code', 'Fundo de código', 'Blocos e trechos de código'],
+  ['accent', 'Destaque', 'Seleção, botões e foco'],
+];
+const THEME_EXTRA_TOKENS = [
+  ['heading', 'Títulos', 'Vazio = cor do texto'],
+  ['link', 'Links', 'Vazio = cor de destaque'],
+  ['tag', 'Tags', 'Vazio = cor de destaque'],
+  ['highlight', 'Marca-texto', '==texto== · vazio = amarelo'],
+];
+const isHex = (v) => typeof v === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v.trim());
+function rgbToHex(r, g, b) { return '#' + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join(''); }
+function hexToHsl(hex) {
+  let [r, g, b] = hexToRgb(hex).map((v) => v / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0; const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h *= 60;
+  }
+  return [h, s * 100, l * 100];
+}
+function hslToHex(h, s, l) {
+  h = ((h % 360) + 360) % 360; s = Math.max(0, Math.min(100, s)) / 100; l = Math.max(0, Math.min(100, l)) / 100;
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return rgbToHex(f(0) * 255, f(8) * 255, f(4) * 255);
+}
+function luminance(hex) {
+  const [r, g, b] = hexToRgb(hex).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrastRatio(a, b) { const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); }
+
+// Gera uma paleta completa a partir de uma cor base, modo e intensidade do tom no fundo (0–100).
+function generatePalette({ base = '#8b7bff', dark = true, tint = 35, contrast = 50 } = {}) {
+  const [h, sat] = hexToHsl(base);
+  const ts = Math.min(sat, 100) * (tint / 100) * 0.55; // saturação do fundo
+  const c = contrast / 50; // 0..2
+  if (dark) {
+    const L = 6 + (1 - c) * 4;
+    return {
+      dark: true, accent: base,
+      bg: hslToHex(h, ts, L), bg2: hslToHex(h, ts, L + 2.5), bg3: hslToHex(h, ts, L + 6), border: hslToHex(h, ts, L + 9.5),
+      code: hslToHex(h, ts, L + 3.5),
+      text: hslToHex(h, ts * 0.4, 88 + c * 3.5), muted: hslToHex(h, ts * 0.5, 62 + c * 3), faint: hslToHex(h, ts * 0.5, 38 + c * 2),
+    };
+  }
+  const L = 99 - (1 - c) * 3;
+  return {
+    dark: false, accent: base,
+    bg: hslToHex(h, ts, L), bg2: hslToHex(h, ts * 1.1, L - 3), bg3: hslToHex(h, ts * 1.1, L - 6.5), border: hslToHex(h, ts, L - 10.5),
+    code: hslToHex(h, ts, L - 3.5),
+    text: hslToHex(h, ts * 0.6, 14 - c * 4), muted: hslToHex(h, ts * 0.5, 38 - c * 3), faint: hslToHex(h, ts * 0.4, 63 - c * 2),
+  };
+}
+
+// Normaliza um tema (preenche "surface" e valida cores); usado por temas personalizados e importados.
+function normalizeTheme(t, fallback = THEMES.midnight) {
+  const out = { name: String(t?.name || 'Meu tema').slice(0, 40), dark: t?.dark !== undefined ? !!t.dark : fallback.dark };
+  for (const [k] of THEME_TOKENS) out[k] = isHex(t?.[k]) ? t[k].trim() : fallback[k];
+  for (const [k] of THEME_EXTRA_TOKENS) if (isHex(t?.[k])) out[k] = t[k].trim();
+  out.surface = isHex(t?.surface) ? t.surface : (out.dark ? out.bg3.slice(0, 7) + '80' : out.bg.slice(0, 7) + 'cc');
+  return out;
+}
+function allThemes(s) { return { ...THEMES, ...(s?.customThemes || {}) }; }
+function themeOf(s, id = s.theme) { return s?.customThemes?.[id] || THEMES[id] || THEMES.midnight; }
+
+// Aplica as variáveis de cor de um tema a um elemento (raiz ou pré-visualização).
+function applyThemeVars(el, t, accent) {
+  const set = (k, v) => el.style.setProperty(k, v);
   set('--bg', t.bg); set('--bg-2', t.bg2); set('--bg-3', t.bg3);
   set('--surface', t.surface); set('--border', t.border);
   set('--text', t.text); set('--text-muted', t.muted); set('--text-faint', t.faint);
   set('--code-bg', t.code);
   set('--accent', accent); set('--accent-contrast', contrastText(accent));
+  for (const [k] of THEME_EXTRA_TOKENS) { if (t[k]) set('--' + k, t[k]); else el.style.removeProperty('--' + k); }
+}
+
+function applyAppearance(s) {
+  const t = { ...themeOf(s), ...(s.overrides?.[s.theme] || {}) };
+  const accent = s.accent || t.accent;
+  const root = document.documentElement;
+  const set = (k, v) => root.style.setProperty(k, v);
+  applyThemeVars(root, t, accent);
   const custom = s.customFont?.trim() ? `'${s.customFont.trim().replace(/'/g, '')}', ` : '';
   set('--font-ui', (FONTS[s.fontUi] || FONTS.inter).css);
   set('--font-editor', custom + (FONTS[s.fontEditor] || FONTS.inter).css);
