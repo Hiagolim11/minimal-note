@@ -1,0 +1,62 @@
+{
+  "name": "minimal-note",
+  "productName": "Minimal Note",
+  "version": "1.0.0",
+  "description": "App de notas em Markdown inspirado no Obsidian — moderno, estilizado e personalizável.",
+  "main": "main.js",
+  "author": {
+    "name": "Hiagolim11",
+    "email": "Hiagolim11@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/Hiagolim11/minimal-note",
+  "scripts": {
+    "start": "electron .",
+    "icon": "electron build/make-icon.js",
+    "dist:win": "electron-builder --win nsis --x64",
+    "build:linux-dir": "electron-builder --linux dir --x64",
+    "dist:linux": "npm run build:linux-dir && node build/make-deb.js",
+    "dist": "npm run dist:win && npm run dist:linux"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.0.0",
+    "@fontsource-variable/jetbrains-mono": "^5.0.0",
+    "@fontsource-variable/lora": "^5.0.0",
+    "@fontsource-variable/outfit": "^5.0.0",
+    "dompurify": "^3.1.0",
+    "marked": "^12.0.0"
+  },
+  "devDependencies": {
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.minimalnote.app",
+    "productName": "Minimal Note",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png",
+      "artifactName": "Minimal-Note-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Minimal Note"
+    },
+    "linux": {
+      "executableName": "minimal-note",
+      "icon": "build/icon.png",
+      "category": "Office"
+    }
+  }
+}

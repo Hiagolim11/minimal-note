@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file: https: http:; font-src 'self' data:; connect-src 'none'; object-src 'none'">
+  <title>Minimal Note</title>
+  <link rel="stylesheet" href="../node_modules/@fontsource-variable/inter/index.css">
+  <link rel="stylesheet" href="../node_modules/@fontsource-variable/outfit/index.css">
+  <link rel="stylesheet" href="../node_modules/@fontsource-variable/lora/index.css">
+  <link rel="stylesheet" href="../node_modules/@fontsource-variable/jetbrains-mono/index.css">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/content.css">
+</head>
+<body>
+  <div class="bg-fx" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <div id="app" class="app">
+    <!-- barra de título -->
+    <header class="titlebar">
+      <div class="tb-left">
+        <button class="icon-btn" id="btn-toggle-left" title="Alternar barra lateral" data-icon="panelLeft"></button>
+        <div class="brand"><span class="brand-dot"></span><span>Minimal Note</span></div>
+      </div>
+      <div class="tabs" id="tabs" role="tablist"></div>
+      <div class="tb-right">
+        <button class="icon-btn" id="btn-new-tab" title="Nova nota (Ctrl+N)" data-icon="plus"></button>
+        <button class="icon-btn" id="btn-toggle-right" title="Alternar painel direito" data-icon="panelRight"></button>
+        <div class="win-controls">
+          <button class="win-btn" id="win-min" title="Minimizar" data-icon="minus" data-size="16"></button>
+          <button class="win-btn" id="win-max" title="Maximizar" data-icon="square" data-size="14"></button>
+          <button class="win-btn close" id="win-close" title="Fechar" data-icon="x" data-size="16"></button>
+        </div>
+      </div>
+    </header>
+
+    <div class="body">
+      <!-- faixa de ícones -->
+      <nav class="ribbon">
+        <button class="rb-btn active" data-panel="files" title="Arquivos" data-icon="files"></button>
+        <button class="rb-btn" data-panel="search" title="Buscar (Ctrl+Shift+F)" data-icon="search"></button>
+        <button class="rb-btn" data-panel="tags" title="Tags" data-icon="tag"></button>
+        <div class="rb-sep"></div>
+        <button class="rb-btn" data-cmd="graph" title="Grafo (Ctrl+G)" data-icon="graph"></button>
+        <button class="rb-btn" data-cmd="daily" title="Nota diária (Ctrl+Shift+D)" data-icon="calendar"></button>
+        <button class="rb-btn" data-cmd="palette" title="Paleta de comandos (Ctrl+P)" data-icon="command"></button>
+        <div class="rb-spacer"></div>
+        <button class="rb-btn" data-cmd="theme-cycle" title="Próximo tema" data-icon="palette"></button>
+        <button class="rb-btn" data-cmd="settings" title="Configurações (Ctrl+,)" data-icon="settings"></button>
+      </nav>
+
+      <!-- barra lateral esquerda -->
+      <aside class="sidebar left" id="sidebar-left">
+        <section class="panel" data-panel="files">
+          <div class="panel-head">
+            <button class="vault-name" id="vault-name" title="Trocar de cofre"><span data-icon="vault" data-size="16"></span><span class="txt">Cofre</span></button>
+            <div class="panel-actions">
+              <button class="icon-btn sm" id="btn-new-note" title="Nova nota" data-icon="notePlus" data-size="16"></button>
+              <button class="icon-btn sm" id="btn-new-folder" title="Nova pasta" data-icon="folderPlus" data-size="16"></button>
+              <button class="icon-btn sm" id="btn-sort" title="Ordenar" data-icon="sort" data-size="16"></button>
+              <button class="icon-btn sm" id="btn-collapse" title="Recolher tudo" data-icon="collapse" data-size="16"></button>
+            </div>
+          </div>
+          <div class="file-tree" id="file-tree" tabindex="0"></div>
+        </section>
+        <section class="panel" data-panel="search" hidden>
+          <div class="panel-head"><span class="panel-title">Buscar</span></div>
+          <div class="search-box">
+            <span data-icon="search" data-size="16"></span>
+            <input id="search-input" type="search" placeholder="Buscar no cofre…" spellcheck="false">
+          </div>
+          <div class="search-meta" id="search-meta"></div>
+          <div class="search-results" id="search-results"></div>
+        </section>
+        <section class="panel" data-panel="tags" hidden>
+          <div class="panel-head"><span class="panel-title">Tags</span></div>
+          <div class="tag-list" id="tag-list"></div>
+        </section>
+        <div class="resizer" data-side="left"></div>
+      </aside>
+
+      <!-- área principal -->
+      <main class="workspace" id="workspace">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-card">
+            <div class="empty-logo"><span data-icon="sparkles" data-size="34"></span></div>
+            <h1>Nenhuma nota aberta</h1>
+            <p>Comece a escrever ou explore o seu cofre.</p>
+            <div class="empty-actions">
+              <button class="btn primary" data-cmd="new-note"><span data-icon="notePlus" data-size="16"></span>Nova nota <kbd>Ctrl N</kbd></button>
+              <button class="btn" data-cmd="palette"><span data-icon="search" data-size="16"></span>Abrir nota <kbd>Ctrl P</kbd></button>
+              <button class="btn" data-cmd="graph"><span data-icon="graph" data-size="16"></span>Ver grafo <kbd>Ctrl G</kbd></button>
+            </div>
+            <div class="recent" id="recent-list"></div>
+          </div>
+        </div>
+
+        <div class="note-view" id="note-view" hidden>
+          <div class="view-header">
+            <div class="breadcrumbs" id="breadcrumbs"></div>
+            <div class="view-modes" role="group">
+              <button class="mode-btn" data-mode="edit" title="Editar (Ctrl+E)" data-icon="edit" data-size="16"></button>
+              <button class="mode-btn" data-mode="split" title="Dividido (Ctrl+\)" data-icon="columns" data-size="16"></button>
+              <button class="mode-btn" data-mode="preview" title="Leitura (Ctrl+E)" data-icon="eye" data-size="16"></button>
+            </div>
+          </div>
+          <div class="panes" id="panes">
+            <div class="pane editor-pane" id="editor-pane">
+              <div class="doc">
+                <input class="note-title" id="note-title" spellcheck="false" placeholder="Sem título">
+                <div class="editor-wrap">
+                  <div class="editor-hl" id="editor-hl" aria-hidden="true"></div>
+                  <textarea id="editor" class="editor" spellcheck="true" placeholder="Comece a escrever… use [[ para criar links"></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="pane preview-pane" id="preview-pane">
+              <div class="doc">
+                <h1 class="note-title-static" id="preview-title"></h1>
+                <article class="markdown" id="preview"></article>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="graph-view" id="graph-view" hidden>
+          <div class="graph-toolbar">
+            <div class="search-box sm">
+              <span data-icon="search" data-size="14"></span>
+              <input id="graph-filter" type="search" placeholder="Filtrar nós…" spellcheck="false">
+            </div>
+            <label class="chip"><input type="checkbox" id="g-tags"> Tags</label>
+            <label class="chip"><input type="checkbox" id="g-orphans"> Órfãs</label>
+            <label class="chip"><input type="checkbox" id="g-ghosts"> Não criadas</label>
+            <label class="chip"><input type="checkbox" id="g-labels"> Rótulos</label>
+            <button class="icon-btn sm" id="g-center" title="Centralizar" data-icon="focus" data-size="16"></button>
+          </div>
+          <div class="graph-canvas" id="graph-canvas"></div>
+          <div class="graph-stats" id="graph-stats"></div>
+        </div>
+      </main>
+
+      <!-- barra lateral direita -->
+      <aside class="sidebar right" id="sidebar-right">
+        <div class="resizer" data-side="right"></div>
+        <div class="seg" id="right-tabs">
+          <button data-rpanel="outline" title="Sumário" data-icon="list" data-size="16"></button>
+          <button data-rpanel="backlinks" title="Backlinks" data-icon="link" data-size="16"></button>
+          <button data-rpanel="info" title="Informações" data-icon="info" data-size="16"></button>
+        </div>
+        <div class="rpanel" data-rpanel="outline"><div class="rp-title">Sumário</div><div id="outline"></div></div>
+        <div class="rpanel" data-rpanel="backlinks" hidden><div class="rp-title">Backlinks</div><div id="backlinks"></div><div class="rp-title">Links de saída</div><div id="outlinks"></div></div>
+        <div class="rpanel" data-rpanel="info" hidden><div class="rp-title">Informações</div><div id="note-info"></div></div>
+      </aside>
+      <div class="drawer-backdrop" id="drawer-backdrop"></div>
+    </div>
+
+    <footer class="statusbar">
+      <span id="st-save" class="st-item"></span>
+      <span class="st-spacer"></span>
+      <span id="st-cursor" class="st-item"></span>
+      <span id="st-words" class="st-item"></span>
+      <span id="st-chars" class="st-item"></span>
+      <button id="st-theme" class="st-item st-btn" title="Trocar tema"></button>
+    </footer>
+  </div>
+
+  <!-- paleta de comandos -->
+  <div class="overlay" id="palette" hidden>
+    <div class="palette">
+      <div class="palette-input"><span data-icon="search" data-size="18"></span><input id="palette-input" spellcheck="false" placeholder="Buscar notas…   ( > para comandos )"></div>
+      <div class="palette-list" id="palette-list"></div>
+      <div class="palette-foot"><span><kbd>↑↓</kbd> navegar</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Shift Enter</kbd> criar</span><span><kbd>Esc</kbd> fechar</span></div>
+    </div>
+  </div>
+
+  <!-- configurações -->
+  <div class="overlay" id="settings" hidden>
+    <div class="modal settings-modal">
+      <nav class="settings-nav" id="settings-nav"></nav>
+      <div class="settings-body">
+        <button class="icon-btn modal-close" id="settings-close" data-icon="x"></button>
+        <div id="settings-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- diálogo genérico -->
+  <div class="overlay" id="dialog" hidden>
+    <div class="modal dialog">
+      <h3 id="dialog-title"></h3>
+      <p id="dialog-msg"></p>
+      <input id="dialog-input" spellcheck="false">
+      <div class="dialog-actions">
+        <button class="btn" id="dialog-cancel">Cancelar</button>
+        <button class="btn primary" id="dialog-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ctx-menu" id="ctx-menu" hidden></div>
+  <div class="suggest" id="suggest" hidden></div>
+  <div class="toasts" id="toasts"></div>
+  <div id="print-root"></div>
+
+  <script src="../node_modules/marked/lib/marked.umd.js"></script>
+  <script src="../node_modules/dompurify/dist/purify.min.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/themes.js"></script>
+  <script src="js/markdown.js"></script>
+  <script src="js/graph.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

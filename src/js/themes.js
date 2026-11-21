@@ -1,0 +1,153 @@
+// Temas, fontes e aplicação das preferências visuais
+const THEMES = {
+  midnight: {
+    name: 'Meia-noite', dark: true, accent: '#8b7bff',
+    bg: '#0f1117', bg2: '#141720', bg3: '#1b1f2b', surface: '#20253280', border: '#262b3a',
+    text: '#e6e8ef', muted: '#9aa0b4', faint: '#5d6479', code: '#171a24',
+  },
+  obsidianish: {
+    name: 'Grafite', dark: true, accent: '#a88bfa',
+    bg: '#1e1e1e', bg2: '#252525', bg3: '#2d2d2d', surface: '#33333380', border: '#363636',
+    text: '#dcddde', muted: '#a3a3a3', faint: '#6b6b6b', code: '#262626',
+  },
+  glacier: {
+    name: 'Glacial', dark: true, accent: '#88c0d0',
+    bg: '#232832', bg2: '#2a303c', bg3: '#313846', surface: '#3b425280', border: '#3b4252',
+    text: '#e5e9f0', muted: '#a7b1c2', faint: '#6c7689', code: '#2a303c',
+  },
+  aurora: {
+    name: 'Aurora', dark: true, accent: '#f472b6',
+    bg: '#120d1f', bg2: '#181127', bg3: '#211836', surface: '#2a1f4480', border: '#2e2347',
+    text: '#efe9ff', muted: '#b3a7d1', faint: '#6f6391', code: '#1b1430',
+  },
+  forest: {
+    name: 'Floresta', dark: true, accent: '#7ee0a1',
+    bg: '#0f1512', bg2: '#141c18', bg3: '#1b2520', surface: '#22302880', border: '#24322b',
+    text: '#e3efe8', muted: '#9fb8aa', faint: '#5f7a6b', code: '#16201b',
+  },
+  ember: {
+    name: 'Brasa', dark: true, accent: '#ff9f5a',
+    bg: '#16110e', bg2: '#1d1612', bg3: '#261d17', surface: '#30251d80', border: '#33271f',
+    text: '#f3e9e1', muted: '#c2ad9d', faint: '#7c6858', code: '#1f1813',
+  },
+  oled: {
+    name: 'OLED', dark: true, accent: '#5eead4',
+    bg: '#000000', bg2: '#070707', bg3: '#101010', surface: '#18181880', border: '#1c1c1c',
+    text: '#ededed', muted: '#9a9a9a', faint: '#555555', code: '#0c0c0c',
+  },
+  paper: {
+    name: 'Papel', dark: false, accent: '#6d5dfc',
+    bg: '#ffffff', bg2: '#f6f6f8', bg3: '#eeeef2', surface: '#ffffffcc', border: '#e4e4ea',
+    text: '#1f2230', muted: '#5f6477', faint: '#9da1b1', code: '#f4f4f7',
+  },
+  sepia: {
+    name: 'Sépia', dark: false, accent: '#b5651d',
+    bg: '#faf4e8', bg2: '#f3ebdb', bg3: '#ebe1cd', surface: '#fffaf0cc', border: '#e2d6bf',
+    text: '#3b2f22', muted: '#6e5d49', faint: '#a89780', code: '#f1e8d6',
+  },
+  sky: {
+    name: 'Céu', dark: false, accent: '#0ea5e9',
+    bg: '#f7fbff', bg2: '#eef5fc', bg3: '#e3eef9', surface: '#ffffffcc', border: '#d8e5f2',
+    text: '#13263a', muted: '#4c6178', faint: '#93a5b9', code: '#ecf3fa',
+  },
+  rose: {
+    name: 'Rosé', dark: false, accent: '#e11d74',
+    bg: '#fff8fa', bg2: '#fcf0f4', bg3: '#f7e4eb', surface: '#ffffffcc', border: '#f0d9e2',
+    text: '#33141f', muted: '#76495a', faint: '#b38c9b', code: '#fbeef3',
+  },
+};
+
+const ACCENTS = ['#8b7bff', '#6d5dfc', '#3b82f6', '#0ea5e9', '#14b8a6', '#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444', '#ec4899', '#d946ef'];
+
+const FONTS = {
+  inter: { name: 'Inter', css: "'Inter Variable', 'Segoe UI', system-ui, sans-serif" },
+  outfit: { name: 'Outfit', css: "'Outfit Variable', 'Segoe UI', system-ui, sans-serif" },
+  system: { name: 'Sistema', css: "system-ui, 'Segoe UI', Roboto, sans-serif" },
+  lora: { name: 'Lora (serifa)', css: "'Lora Variable', Georgia, serif" },
+  georgia: { name: 'Georgia', css: "Georgia, 'Times New Roman', serif" },
+  jetbrains: { name: 'JetBrains Mono', css: "'JetBrains Mono Variable', Consolas, monospace" },
+  cascadia: { name: 'Cascadia / Consolas', css: "'Cascadia Code', Consolas, 'Courier New', monospace" },
+};
+
+const DEFAULT_SETTINGS = {
+  vaultPath: null,
+  theme: 'midnight',
+  accent: null, // null = cor do tema
+  overrides: {},
+  fontUi: 'inter',
+  fontEditor: 'inter',
+  fontMono: 'jetbrains',
+  customFont: '',
+  fontSize: 16,
+  lineHeight: 1.7,
+  contentWidth: 760,
+  radius: 10,
+  glass: true,
+  background: 'glow', // plain | glow | mesh
+  density: 'comfortable',
+  ribbon: true,
+  animations: true,
+  defaultMode: 'edit',
+  spellcheck: true,
+  autosaveDelay: 600,
+  smartLists: true,
+  autoPair: true,
+  newNoteFolder: '',
+  attachmentsFolder: 'Anexos',
+  dailyFolder: 'Diário',
+  customCss: '',
+  expanded: [],
+  sort: 'name',
+  leftWidth: 270,
+  rightWidth: 280,
+  leftOpen: true,
+  rightOpen: true,
+  leftPanel: 'files',
+  rightPanel: 'outline',
+  openTabs: [],
+  activeTab: null,
+  graph: { tags: false, orphans: true, labels: true, ghosts: true },
+};
+
+function hexToRgb(hex) {
+  const h = hex.replace('#', '').slice(0, 6);
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function contrastText(hex) {
+  const [r, g, b] = hexToRgb(hex).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return L > 0.45 ? '#111111' : '#ffffff';
+}
+
+function applyAppearance(s) {
+  const t = { ...(THEMES[s.theme] || THEMES.midnight), ...(s.overrides?.[s.theme] || {}) };
+  const accent = s.accent || t.accent;
+  const root = document.documentElement;
+  const set = (k, v) => root.style.setProperty(k, v);
+  set('--bg', t.bg); set('--bg-2', t.bg2); set('--bg-3', t.bg3);
+  set('--surface', t.surface); set('--border', t.border);
+  set('--text', t.text); set('--text-muted', t.muted); set('--text-faint', t.faint);
+  set('--code-bg', t.code);
+  set('--accent', accent); set('--accent-contrast', contrastText(accent));
+  const custom = s.customFont?.trim() ? `'${s.customFont.trim().replace(/'/g, '')}', ` : '';
+  set('--font-ui', (FONTS[s.fontUi] || FONTS.inter).css);
+  set('--font-editor', custom + (FONTS[s.fontEditor] || FONTS.inter).css);
+  set('--font-mono', (FONTS[s.fontMono] || FONTS.jetbrains).css);
+  set('--font-size', s.fontSize + 'px');
+  set('--line-height', s.lineHeight);
+  set('--content-width', s.contentWidth >= 1400 ? '100%' : s.contentWidth + 'px');
+  set('--radius', s.radius + 'px');
+  set('--left-width', s.leftWidth + 'px');
+  set('--right-width', s.rightWidth + 'px');
+  root.dataset.mode = t.dark ? 'dark' : 'light';
+  root.dataset.bg = s.background;
+  root.dataset.density = s.density;
+  root.classList.toggle('glass', !!s.glass);
+  root.classList.toggle('no-anim', !s.animations);
+  root.classList.toggle('no-ribbon', !s.ribbon);
+  let style = document.getElementById('custom-css');
+  if (!style) { style = document.createElement('style'); style.id = 'custom-css'; document.head.appendChild(style); }
+  style.textContent = s.customCss || '';
+  window.lumen?.win.nativeTheme(t.dark ? 'dark' : 'light');
+}
