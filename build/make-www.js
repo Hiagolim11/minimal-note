@@ -1,0 +1,48 @@
+// Gera a pasta www/ usada pelo Capacitor (Android) a partir de src/.
+// - copia a interface;
+// - copia as dependências do navegador (marked, DOMPurify, fontes) para www/vendor;
+// - troca os caminhos ../node_modules/... por vendor/...;
+// - injeta a ponte do Android antes dos outros scripts.
+// Uso: node build/make-www.js
+const fs = require('fs');
+const path = require('path');
+
+const root = path.join(__dirname, '..');
+const src = path.join(root, 'src');
+const out = path.join(root, 'www');
+const nm = path.join(root, 'node_modules');
+
+fs.rmSync(out, { recursive: true, force: true });
+fs.cpSync(src, out, { recursive: true });
+
+const vendor = [
+  ['marked/lib/marked.umd.js', 'marked/marked.umd.js'],
+  ['dompurify/dist/purify.min.js', 'dompurify/purify.min.js'],
+];
+for (const f of ['inter', 'outfit', 'lora', 'jetbrains-mono']) {
+  vendor.push([`@fontsource-variable/${f}/index.css`, `fonts/${f}/index.css`]);
+  vendor.push([`@fontsource-variable/${f}/files`, `fonts/${f}/files`]);
+}
+for (const [from, to] of vendor) {
+  const a = path.join(nm, from), b = path.join(out, 'vendor', to);
+  if (!fs.existsSync(a)) { console.error('Faltando:', a, '— rode "npm install".'); process.exit(1); }
+  fs.mkdirSync(path.dirname(b), { recursive: true });
+  fs.cpSync(a, b, { recursive: true });
+}
+
+const htmlFile = path.join(out, 'index.html');
+let html = fs.readFileSync(htmlFile, 'utf8');
+html = html
+  .replace('../node_modules/marked/lib/marked.umd.js', 'vendor/marked/marked.umd.js')
+  .replace('../node_modules/dompurify/dist/purify.min.js', 'vendor/dompurify/purify.min.js')
+  .replace(/\.\.\/node_modules\/@fontsource-variable\/([\w-]+)\/index\.css/g, 'vendor/fonts/$1/index.css');
+if (html.includes('node_modules')) { console.error('Ainda há referências a node_modules em www/index.html'); process.exit(1); }
+// a ponte do Android precisa existir antes de qualquer script do app
+html = html.replace('<script src="vendor/marked/marked.umd.js"></script>', '<script src="js/android-bridge.js"></script>\n  <script src="vendor/marked/marked.umd.js"></script>');
+// viewport para celular: sem zoom acidental, área segura (notch/barra de gestos)
+html = html.replace('<meta name="viewport" content="width=device-width, initial-scale=1">',
+  '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">');
+fs.writeFileSync(htmlFile, html);
+
+const count = (d) => fs.readdirSync(d, { withFileTypes: true }).reduce((n, e) => n + (e.isDirectory() ? count(path.join(d, e.name)) : 1), 0);
+console.log(`www/ gerado (${count(out)} arquivos)`);

@@ -1,6 +1,6 @@
 # Minimal Note
 
-App de notas em Markdown, local e personalizável, inspirado no Obsidian — feito com Electron.
+App de notas em Markdown, local e personalizável, inspirado no Obsidian — feito com Electron (Windows e Linux) e Capacitor (Android).
 
 ![ícone](build/icon.png)
 
@@ -17,7 +17,8 @@ App de notas em Markdown, local e personalizável, inspirado no Obsidian — fei
 - **Criador de temas**: gere uma paleta a partir de uma cor, ajuste cada cor (inclusive títulos, links, tags e marca-texto), veja a pré-visualização ao vivo, confira o contraste e salve seus próprios temas
 - **CSS personalizado** e exportação/importação de temas em JSON (texto ou arquivo)
 - Exportação para **HTML** e **PDF**
-- Layout **responsivo** (barras laterais viram gavetas em telas estreitas)
+- Layout **responsivo** (barras laterais viram gavetas em telas estreitas e, no celular, a faixa de ícones vira uma barra de navegação embaixo)
+- **App Android** com a mesma interface: notas em `Documentos/Minimal Note`, botão voltar, lixeira do cofre (`.lixeira`) e exportação HTML
 
 ## Desenvolvimento
 
@@ -38,8 +39,25 @@ O `.deb` é montado por `build/make-deb.js` a partir de `dist/linux-unpacked`, e
 Instalar no Linux (Debian/Ubuntu):
 
 ```bash
-sudo apt install ./dist/minimal-note_1.2.0_amd64.deb
+sudo apt install ./dist/minimal-note_1.3.0_amd64.deb
 ```
+
+
+## Android (APK)
+
+O app Android usa o [Capacitor](https://capacitorjs.com) com a mesma interface de `src/`. A ponte `src/js/android-bridge.js` implementa a API `window.lumen` usando os plugins Filesystem e App.
+
+Requisitos: JDK 21 e Android SDK (plataforma 35). Em seguida:
+
+```bash
+npm install
+npm run android:apk      # gera android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+- `npm run android:www` gera a pasta `www/` (interface + dependências, sem `node_modules`)
+- `npm run android:assets` recria ícones e tela de abertura a partir de `build/icon.png` e ajusta a versão
+- As notas ficam em `Documentos/Minimal Note` (ou na pasta privada do app, se o Android não permitir)
+- No Windows, faça o build numa pasta de caminho curto (ex.: `C:\dev\minimal-note`): os caminhos do Gradle passam do limite de 260 caracteres
 
 ## Atalhos principais
 

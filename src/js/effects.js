@@ -39,7 +39,8 @@ class Effects {
     window.addEventListener('pointermove', (e) => this.onMove(e), { passive: true });
     window.addEventListener('pointerdown', (e) => this.onDown(e), { passive: true });
     window.addEventListener('mouseout', (e) => { if (!e.relatedTarget) { this.mouse.inside = false; this.mouse.t = performance.now(); this.kick(); } });
-    document.addEventListener('visibilitychange', () => { this.hidden = document.hidden; this.kick(); });
+    this.minimized = false;
+    document.addEventListener('visibilitychange', () => { this.hidden = document.hidden || this.minimized; this.kick(); });
     window.addEventListener('blur', () => { this.focused = false; });
     window.addEventListener('focus', () => { this.focused = true; this.kick(); });
     this.resize();
@@ -155,6 +156,14 @@ class Effects {
       size: (kind === 'star' ? 3 + r() * 6 : 3 + r() * 4) * scale, rot: r() * Math.PI, vr: (r() - 0.5) * 0.2,
       life: 1, decay: 0.012 + r() * 0.02, c: this.sparkColor(), kind, w: r() < 0.5 ? 1 : 0.5,
     });
+  }
+
+  // aviso explícito do Electron ao minimizar/restaurar a janela
+  setMinimized(v) {
+    this.minimized = v;
+    this.hidden = v || document.hidden;
+    if (this.hidden && this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; }
+    this.kick();
   }
 
   kick() {

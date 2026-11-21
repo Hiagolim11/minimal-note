@@ -187,9 +187,12 @@ function createWindow(bounds) {
     if (!url.startsWith('file://')) { e.preventDefault(); if (/^https?:\/\//i.test(url)) shell.openExternal(url); }
   });
 
-  const sendState = () => win?.webContents.send('window:state', { maximized: win.isMaximized() });
+  const sendState = () => win?.webContents.send('window:state', { maximized: win.isMaximized(), minimized: win.isMinimized() });
   win.on('maximize', sendState);
   win.on('unmaximize', sendState);
+  // minimizar/restaurar: o renderer pausa as animações (nem sempre document.hidden muda a tempo)
+  win.on('minimize', sendState);
+  win.on('restore', sendState);
 
   win.on('close', async () => {
     try {

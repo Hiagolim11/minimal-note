@@ -144,6 +144,9 @@ function applyFxPreset(id) {
 }
 const presetActive = (id) => Object.entries(FX_PRESETS[id].fx).every(([k, val]) => S.settings[k] === val);
 
+// "Mostrar no Explorer" só existe no computador
+const CAN_REVEAL = window.lumen?.platform !== 'android';
+
 // ---------- índice do cofre ----------
 function indexNote(path, content, mtime, ctime) {
   const prev = S.notes.get(path);
@@ -377,7 +380,7 @@ function bindTabs() {
       { label: 'Fechar', icon: 'x', kbd: 'Ctrl W', run: () => closeTab(id) },
       { label: 'Fechar outras', icon: 'squares', run: () => S.tabs.filter((x) => x.id !== id).forEach((x) => closeTab(x.id)) },
       { label: 'Fechar todas', icon: 'trash', run: () => [...S.tabs].forEach((x) => closeTab(x.id)) },
-      ...(t.kind === 'note' ? ['sep', { label: 'Mostrar no Explorer', icon: 'external', run: () => lumen.shell.reveal(t.path) }] : []),
+      ...(t.kind === 'note' && CAN_REVEAL ? ['sep', { label: 'Mostrar no Explorer', icon: 'external', run: () => lumen.shell.reveal(t.path) }] : []),
     ]);
   });
   // reordenar arrastando
@@ -491,6 +494,7 @@ function renderPreview() {
 const renderPreviewSoon = debounce(renderPreview, 120);
 
 function fileUrl(rel) {
+  if (lumen.fileUrl) return lumen.fileUrl(rel); // Android: URL própria da WebView
   const full = (S.vault.root.replace(/\\/g, '/') + '/' + rel).split('/');
   return 'file:///' + full.map((seg, i) => (i === 0 && /^[A-Za-z]:$/.test(seg) ? seg : encodeURIComponent(seg))).filter(Boolean).join('/');
 }
@@ -652,7 +656,7 @@ async function renamePath(from, to, isFolder = false) {
 }
 
 async function deletePath(path, isFolder) {
-  const ok = await confirmBox(isFolder ? 'Excluir pasta?' : 'Excluir nota?', `“${path}” será movido para a lixeira do sistema.`);
+  const ok = await confirmBox(isFolder ? 'Excluir pasta?' : 'Excluir nota?', `“${path}” será movido para ${lumen.platform === 'android' ? 'a pasta .lixeira do cofre' : 'a lixeira do sistema'}.`);
   if (!ok) return;
   try {
     for (const t of [...S.tabs]) if (t.kind === 'note' && (t.path === path || t.path.startsWith(path + '/'))) { S.pending.delete(t.path); closeTab(t.id, true); }
@@ -765,7 +769,7 @@ function bindTree() {
         { label: 'Nova subpasta', icon: 'folderPlus', run: () => newFolder(path) },
         'sep',
         { label: 'Renomear', icon: 'edit', run: async () => { const n = await promptName('Renomear pasta', baseName(path)); if (n && cleanName(n)) renamePath(path, joinPath(dirName(path), cleanName(n)), true); } },
-        { label: 'Mostrar no Explorer', icon: 'external', run: () => lumen.shell.reveal(path) },
+        ...(CAN_REVEAL ? [{ label: 'Mostrar no Explorer', icon: 'external', run: () => lumen.shell.reveal(path) }] : []),
         'sep',
         { label: 'Excluir pasta', icon: 'trash', danger: true, run: () => deletePath(path, true) },
       ]);
@@ -778,7 +782,7 @@ function bindTree() {
       );
       else items.push({ label: 'Copiar link de incorporação', icon: 'link', run: () => { navigator.clipboard.writeText(`![[${path}]]`); toast('Link copiado'); } });
       items.push(
-        { label: 'Mostrar no Explorer', icon: 'external', run: () => lumen.shell.reveal(path) },
+        ...(CAN_REVEAL ? [{ label: 'Mostrar no Explorer', icon: 'external', run: () => lumen.shell.reveal(path) }] : []),
         'sep',
         { label: 'Excluir', icon: 'trash', danger: true, run: () => deletePath(path, false) },
       );
@@ -989,7 +993,7 @@ const COMMANDS = [
   { id: 'rename', name: 'Renomear nota atual', icon: 'edit', run: () => { if (activeNote()) { setMode(activeTab().mode === 'preview' ? 'edit' : activeTab().mode); $('#note-title').focus(); $('#note-title').select(); } } },
   { id: 'delete', name: 'Excluir nota atual', icon: 'trash', run: () => { const n = activeNote(); if (n) deletePath(n.path); } },
   { id: 'duplicate', name: 'Duplicar nota atual', icon: 'copy', run: () => { const n = activeNote(); if (n) duplicateNote(n.path); } },
-  { id: 'reveal', name: 'Mostrar nota no Explorer', icon: 'external', run: () => { const n = activeNote(); if (n) lumen.shell.reveal(n.path); } },
+  ...(CAN_REVEAL ? [{ id: 'reveal', name: 'Mostrar nota no Explorer', icon: 'external', run: () => { const n = activeNote(); if (n) lumen.shell.reveal(n.path); } }] : []),
   { id: 'export-html', name: 'Exportar nota como HTML', icon: 'download', run: () => exportHtml() },
   { id: 'export-pdf', name: 'Exportar nota como PDF', icon: 'download', run: () => exportPdf() },
   { id: 'switch-vault', name: 'Trocar de cofre', icon: 'vault', run: () => chooseVault() },
@@ -1197,7 +1201,7 @@ function renderSection() {
     const keys = [['Nova nota', 'Ctrl N'], ['Paleta / abrir nota', 'Ctrl P'], ['Comandos', 'Ctrl Shift P'], ['Buscar no cofre', 'Ctrl Shift F'], ['Edição ↔ leitura', 'Ctrl E'], ['Modo dividido', 'Ctrl \\'], ['Grafo', 'Ctrl G'], ['Nota diária', 'Ctrl Shift D'], ['Fechar aba', 'Ctrl W'], ['Próxima aba', 'Ctrl Tab'], ['Salvar agora', 'Ctrl S'], ['Configurações', 'Ctrl ,'], ['Modo foco', 'F11'], ['Negrito / itálico', 'Ctrl B / Ctrl I'], ['Link', 'Ctrl K'], ['Tarefa', 'Ctrl L'], ['Riscado', 'Ctrl Shift X'], ['Destaque', 'Ctrl Shift H'], ['Indentar', 'Tab / Shift Tab'], ['Fonte maior / menor', 'Ctrl + / Ctrl −']];
     c.innerHTML = `<h2>Atalhos</h2><p class="sub">Atalhos de teclado disponíveis.</p><div class="set-group">${keys.map(([a, k]) => row(a, '', `<kbd>${k}</kbd>`)).join('')}</div>`;
   } else {
-    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.2 · notas em Markdown, locais e suas.</p>
+    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.3 · notas em Markdown, locais e suas.</p>
       <p class="sub">${S.notes.size} notas · ${[...S.notes.values()].reduce((a, n) => a + n.words, 0).toLocaleString('pt-BR')} palavras no cofre</p></div>`;
   }
   bindSection();
@@ -1263,6 +1267,7 @@ function bindSection() {
 }
 
 async function chooseVault() {
+  if (lumen.platform === 'android') return toast('No Android o cofre fica em ' + (S.vault?.root || 'Documentos/Minimal Note'));
   const dir = await lumen.vault.choose();
   if (!dir) return;
   await openVault(dir);
@@ -1535,7 +1540,10 @@ function bindUI() {
   $('#win-max').addEventListener('click', () => lumen.win.maximize());
   $('#win-close').addEventListener('click', () => lumen.win.close());
   $('.titlebar').addEventListener('dblclick', (e) => { if (!e.target.closest('button,.tab')) lumen.win.maximize(); });
-  lumen.win.onState(({ maximized }) => { $('#win-max').innerHTML = icon(maximized ? 'squares' : 'square', 14); });
+  lumen.win.onState(({ maximized, minimized }) => {
+    $('#win-max').innerHTML = icon(maximized ? 'squares' : 'square', 14);
+    S.fx?.setMinimized(!!minimized);
+  });
 
   let lastW = window.innerWidth;
   window.addEventListener('resize', debounce(() => {
@@ -1598,6 +1606,7 @@ function bindKeys() {
 
 // ---------- inicialização ----------
 async function init() {
+  document.documentElement.classList.add('platform-' + (lumen.platform || 'desktop'));
   hydrateIcons();
   let saved = {};
   try { saved = await lumen.settings.get(); } catch { /* primeira execução */ }

@@ -440,7 +440,21 @@ mark.hl, .sr-hit mark { background: color-mix(in srgb, var(--accent) 30%, transp
   .st-item#st-cursor, .st-item#st-chars { display: none; }
 }
 @media (max-width: 480px) {
-  .ribbon { display: none; }
+  /* celular: a faixa de ícones vira a barra de navegação de baixo */
+  :root { --nav-h: 56px; }
+  .ribbon {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; width: auto; height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    flex-direction: row; justify-content: space-around; align-items: flex-start; gap: 0; padding: 6px 4px env(safe-area-inset-bottom);
+    border-right: 0; border-top: 1px solid var(--border); background: color-mix(in srgb, var(--bg-2) 96%, transparent);
+  }
+  :root.glass .ribbon { background: color-mix(in srgb, var(--bg-2) 85%, transparent); }
+  :root.no-ribbon .ribbon { display: flex; }
+  .ribbon .rb-sep, .ribbon .rb-spacer, .ribbon [data-cmd="theme-cycle"] { display: none; }
+  .rb-btn { width: 44px; height: 44px; }
+  .rb-btn.active::before { left: 12px; right: 12px; top: -7px; bottom: auto; width: auto; height: 3px; }
+  .statusbar { display: none; }
+  .body { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+  .toasts { bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); }
   .view-header { padding: 6px 10px; }
   .breadcrumbs { display: none; }
   .view-header { justify-content: flex-end; }
@@ -596,3 +610,17 @@ mark.hl, .sr-hit mark { background: color-mix(in srgb, var(--accent) 30%, transp
 .fx-hint { font-size: 12px; color: var(--text-faint); margin: -6px 0 12px; }
 .fx-hint.warn { color: #eab308; }
 .fx-color-row { display: flex; align-items: center; gap: 8px; }
+
+/* ===== Android / telas de toque ===== */
+:root.platform-android .win-controls { display: none; }
+:root.platform-android .titlebar { padding-top: env(safe-area-inset-top); height: calc(var(--titlebar-h) + env(safe-area-inset-top)); padding-right: 6px; }
+:root.platform-android { --titlebar-h: 48px; }
+:root.platform-android body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+@media (hover: none) {
+  .tab .tab-close { opacity: .7; }
+  .theme-card .tc-badge { opacity: 1; }
+  .tree-item { min-height: 38px; }
+  .icon-btn.sm { width: 34px; height: 34px; }
+  .pl-item { min-height: 44px; }
+  .ctx-menu button { min-height: 40px; }
+}

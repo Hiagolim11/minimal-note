@@ -1,7 +1,7 @@
 {
   "name": "minimal-note",
   "productName": "Minimal Note",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "App de notas em Markdown inspirado no Obsidian — moderno, estilizado e personalizável.",
   "main": "main.js",
   "author": {
@@ -15,7 +15,11 @@
     "dist:win": "electron-builder --win nsis --x64",
     "build:linux-dir": "electron-builder --linux dir --x64",
     "dist:linux": "npm run build:linux-dir && node build/make-deb.js",
-    "dist": "npm run dist:win && npm run dist:linux"
+    "dist": "npm run dist:win && npm run dist:linux",
+    "android:www": "node build/make-www.js",
+    "android:assets": "electron build/make-android-assets.js",
+    "android:sync": "npm run android:www && cap sync android",
+    "android:apk": "npm run android:sync && cd android && gradlew assembleDebug"
   },
   "license": "MIT",
   "dependencies": {
@@ -27,6 +31,11 @@
     "marked": "^12.0.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/cli": "^7.6.10",
+    "@capacitor/core": "^7.6.10",
+    "@capacitor/filesystem": "^7.1.9",
     "electron": "^45.4.1",
     "electron-builder": "^26.18.0"
   },
