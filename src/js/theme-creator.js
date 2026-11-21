@@ -27,12 +27,14 @@ function tcStopLive() {
   if (!TC.live) return;
   TC.live = false;
   applyAppearance(S.settings);
+  applyEffects();
   S.graph?.readColors();
 }
 function tcApplyLive() {
   if (!TC.live || !TC.draft) return;
   applyThemeVars(document.documentElement, TC.draft, TC.draft.accent);
   document.documentElement.dataset.mode = TC.draft.dark ? 'dark' : 'light';
+  applyEffects();
 }
 
 function tcSlug(name) {

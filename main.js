@@ -279,8 +279,13 @@ handle('fs:absPath', async (rel) => resolveInVault(rel));
 handle('shell:reveal', async (rel) => { shell.showItemInFolder(resolveInVault(rel)); return true; });
 handle('shell:external', async (url) => { if (/^https?:\/\//i.test(url)) await shell.openExternal(url); return true; });
 
+// no modo de teste, salva direto numa pasta em vez de abrir o diálogo
+const saveDialog = (opts) => (process.env.LUMEN_TEST_SAVE
+  ? { canceled: false, filePath: path.join(process.env.LUMEN_TEST_SAVE, path.basename(opts.defaultPath)) }
+  : dialog.showSaveDialog(win, opts));
+
 handle('fs:exportHtml', async (suggested, html) => {
-  const r = await dialog.showSaveDialog(win, {
+  const r = await saveDialog({
     title: 'Exportar como HTML',
     defaultPath: suggested,
     filters: [{ name: 'HTML', extensions: ['html'] }],
@@ -291,7 +296,7 @@ handle('fs:exportHtml', async (suggested, html) => {
 });
 
 handle('fs:exportPdf', async (suggested) => {
-  const r = await dialog.showSaveDialog(win, {
+  const r = await saveDialog({
     title: 'Exportar como PDF',
     defaultPath: suggested,
     filters: [{ name: 'PDF', extensions: ['pdf'] }],
@@ -312,11 +317,52 @@ ipcMain.on('theme:native', (_e, mode) => { nativeTheme.themeSource = mode; });
 async function runTestScript() {
   const script = require(path.resolve(process.env.LUMEN_TEST_SCRIPT));
   const outDir = process.env.LUMEN_TEST_OUT || __dirname;
-  win.webContents.on('console-message', (_e, level, msg) => { if (level >= 2) console.log('[renderer]', msg); });
+  win.webContents.on('console-message', (e, level, msg) => {
+    const L = e?.level ?? level, M = e?.message ?? msg;
+    if (L === 'warning' || L === 'error' || L >= 2) console.log('[renderer]', M);
+  });
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const wc = win.webContents;
+  // teclas reais: "ctrl+n", "Enter", "shift+Tab"…
+  const press = async (combo) => {
+    const parts = combo.split('+'); const key = parts.pop();
+    const modifiers = parts.map((m) => (m === 'ctrl' ? 'control' : m));
+    wc.sendInputEvent({ type: 'keyDown', keyCode: key, modifiers });
+    if (key.length === 1 && !modifiers.some((m) => m === 'control' || m === 'alt')) wc.sendInputEvent({ type: 'char', keyCode: key, modifiers });
+    else if (key === 'Enter' && !modifiers.includes('control')) wc.sendInputEvent({ type: 'char', keyCode: '\r', modifiers });
+    wc.sendInputEvent({ type: 'keyUp', keyCode: key, modifiers });
+    await wait(25);
+  };
+  const click = async (sel, opts = {}) => {
+    const r = await wc.executeJavaScript(`(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return null; el.scrollIntoView({block:'nearest'}); const b = el.getBoundingClientRect(); return {x: b.left + b.width/2, y: b.top + b.height/2}; })()`);
+    if (!r) { console.log('[click-miss]', sel); return; }
+    const base = { x: Math.round(r.x), y: Math.round(r.y), button: opts.button || 'left', clickCount: opts.count || 1, modifiers: opts.modifiers || [] };
+    wc.sendInputEvent({ type: 'mouseMove', ...base });
+    wc.sendInputEvent({ type: 'mouseDown', ...base });
+    wc.sendInputEvent({ type: 'mouseUp', ...base });
+    await wait(60);
+  };
   await wait(2500);
   for (const step of script) {
     if (step.size) win.setSize(step.size[0], step.size[1]);
+    if (step.media !== undefined) {
+      if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
+      await wc.debugger.sendCommand('Emulation.setEmulatedMedia', { media: step.media });
+    }
+    if (step.click) for (const s of [].concat(step.click)) await click(s, step.clickOpts);
+    if (step.path) for (const [x, y, down] of step.path) { // movimento do mouse ponto a ponto
+      wc.sendInputEvent({ type: down ? 'mouseDown' : 'mouseMove', x, y, button: 'left', clickCount: 1 });
+      if (down) wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
+      await wait(16);
+    }
+    if (step.clickAt) { // expressão JS que devolve {x, y} na janela
+      const p = await wc.executeJavaScript(step.clickAt);
+      const base = { x: Math.round(p.x), y: Math.round(p.y), button: 'left', clickCount: 1 };
+      wc.sendInputEvent({ type: 'mouseMove', ...base }); wc.sendInputEvent({ type: 'mouseDown', ...base }); wc.sendInputEvent({ type: 'mouseUp', ...base });
+      await wait(60);
+    }
+    if (step.keys) for (const k of [].concat(step.keys)) await press(k);
+    if (step.type) for (const ch of step.type) await (ch === '\n' ? press('Enter') : press(ch));
     if (step.js) {
       try { const r = await win.webContents.executeJavaScript(step.js); if (r !== undefined) console.log('[js]', JSON.stringify(r)); }
       catch (err) { console.log('[js-error]', err.message); }

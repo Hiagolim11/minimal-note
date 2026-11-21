@@ -70,7 +70,8 @@
 .markdown li::marker { color: var(--accent); }
 .markdown li.task { list-style: none; margin-left: -1.4em; }
 .markdown li.task > input { margin: 0 .55em 0 0; vertical-align: middle; width: 1.05em; height: 1.05em; accent-color: var(--accent); cursor: pointer; }
-.markdown li.task.done { color: var(--text-faint); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--text) 30%, transparent); }
+.markdown li.task.done > .task-text, .markdown li.task.done > p > .task-text { color: var(--text-faint); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--text) 30%, transparent); }
+.markdown li.task > :is(ul, ol) { padding-left: 2.8em; }
 .markdown hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--border) 15%, var(--border) 85%, transparent); margin: 2em 0; }
 .markdown img { max-width: 100%; border-radius: var(--radius); display: block; margin: 1em 0; box-shadow: 0 6px 24px -10px rgb(0 0 0 / .4); }
 .markdown .table-wrap { overflow-x: auto; margin: 1em 0; border-radius: var(--radius-sm); border: 1px solid var(--border); }

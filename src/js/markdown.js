@@ -104,7 +104,11 @@ const MD = (() => {
   function render(src) {
     const { meta, body } = splitFrontmatter(src);
     let html = marked.parse(body);
-    html = DOMPurify.sanitize(html, { ADD_ATTR: ['data-target', 'data-heading', 'data-tag', 'data-external'], ADD_TAGS: ['mark'] });
+    html = DOMPurify.sanitize(html, {
+      ADD_ATTR: ['data-target', 'data-heading', 'data-tag', 'data-external'], ADD_TAGS: ['mark'],
+      // igual ao padrão do DOMPurify + file: (imagens do cofre são carregadas do disco)
+      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    });
     const wrap = document.createElement('div');
     wrap.innerHTML = html;
 
@@ -132,6 +136,11 @@ const MD = (() => {
       cb.dataset.task = i;
       cb.closest('li')?.classList.add('task');
       if (cb.checked) cb.closest('li')?.classList.add('done');
+      // envolve só o texto da própria tarefa (sem as sublistas), para o riscado não vazar para subtarefas
+      const span = document.createElement('span'); span.className = 'task-text';
+      let n = cb.nextSibling;
+      while (n && !(n.nodeType === 1 && /^(UL|OL)$/.test(n.tagName))) { const next = n.nextSibling; span.appendChild(n); n = next; }
+      cb.after(span);
     });
 
     // tabelas roláveis

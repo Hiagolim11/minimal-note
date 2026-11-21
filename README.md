@@ -13,6 +13,7 @@ App de notas em Markdown, local e personalizável, inspirado no Obsidian — fei
 - **Callouts** (`> [!tip]`), tarefas clicáveis, tabelas, destaques `==texto==`, frontmatter YAML
 - **Busca** em todo o cofre, painel de tags, sumário, nota diária e paleta de comandos (`Ctrl+P`)
 - **11 temas**, cor de destaque, cores do tema editáveis, fontes, tamanhos, efeitos de vidro e fundo animado
+- **Partículas e cursor**: fundo animado (poeira de luz, vaga-lumes, estrelas, neve, bokeh ou bolhas) e efeitos no ponteiro (brilhos em estrela, rastro de luz, aura ou confete, com explosão ao clicar). Estilos prontos, controle de quantidade, velocidade, tamanho, intensidade, cor e reação ao mouse. Tudo roda num único loop leve que pausa com a janela minimizada e respeita "reduzir movimento"
 - **Criador de temas**: gere uma paleta a partir de uma cor, ajuste cada cor (inclusive títulos, links, tags e marca-texto), veja a pré-visualização ao vivo, confira o contraste e salve seus próprios temas
 - **CSS personalizado** e exportação/importação de temas em JSON (texto ou arquivo)
 - Exportação para **HTML** e **PDF**
@@ -37,7 +38,7 @@ O `.deb` é montado por `build/make-deb.js` a partir de `dist/linux-unpacked`, e
 Instalar no Linux (Debian/Ubuntu):
 
 ```bash
-sudo apt install ./dist/minimal-note_1.1.0_amd64.deb
+sudo apt install ./dist/minimal-note_1.2.0_amd64.deb
 ```
 
 ## Atalhos principais

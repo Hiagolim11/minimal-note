@@ -88,6 +88,20 @@ const DEFAULT_SETTINGS = {
   density: 'comfortable',
   ribbon: true,
   animations: true,
+  // partículas e cursor
+  fxParticles: true,
+  fxStyle: 'dust',       // dust | fireflies | stars | snow | bokeh | bubbles
+  fxDensity: 30,         // 5–150
+  fxSpeed: 40,           // 5–150
+  fxSize: 50,            // 20–150
+  fxOpacity: 55,         // 10–100
+  fxColor: 'accent',     // accent | theme | rainbow | custom
+  fxCustomColor: '#facc15',
+  fxMouse: 'none',       // none | repel | attract
+  fxLayer: 'front',      // back | front (atrás só aparece onde a interface é transparente)
+  fxCursor: 'off',       // off | sparkle | trail | glow | confetti
+  fxClickBurst: false,
+  workspaceOpacity: 88,  // transparência da área de escrita (deixa o fundo aparecer)
   defaultMode: 'edit',
   spellcheck: true,
   autosaveDelay: 600,
@@ -224,6 +238,7 @@ function applyAppearance(s) {
   set('--line-height', s.lineHeight);
   set('--content-width', s.contentWidth >= 1400 ? '100%' : s.contentWidth + 'px');
   set('--radius', s.radius + 'px');
+  set('--ws-alpha', Math.max(40, Math.min(100, s.workspaceOpacity ?? 88)) + '%');
   set('--left-width', s.leftWidth + 'px');
   set('--right-width', s.rightWidth + 'px');
   root.dataset.mode = t.dark ? 'dark' : 'light';

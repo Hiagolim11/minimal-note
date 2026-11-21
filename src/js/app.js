@@ -120,10 +120,29 @@ const saveSettings = debounce(() => lumen.settings.set(S.settings).catch((e) => 
 function setSetting(key, val) {
   S.settings[key] = val;
   applyAppearance(S.settings);
+  applyEffects();
   S.graph?.readColors();
   saveSettings();
   updateStatus();
 }
+
+// ---------- partículas e cursor ----------
+function applyEffects() {
+  if (!S.fx) return;
+  const cs = getComputedStyle(document.documentElement);
+  const v = (k) => cs.getPropertyValue(k).trim();
+  const accent = v('--accent') || '#8b7bff';
+  const theme = [...new Set([accent, v('--link'), v('--tag'), v('--heading'), v('--text-muted')].filter((c) => /^#[0-9a-f]{6,8}$/i.test(c)))];
+  S.fx.configure(S.settings, { accent, theme, dark: document.documentElement.dataset.mode !== 'light' });
+}
+const FX_KEYS = ['fxParticles', 'fxStyle', 'fxDensity', 'fxSpeed', 'fxSize', 'fxOpacity', 'fxColor', 'fxCustomColor', 'fxMouse', 'fxLayer', 'fxCursor', 'fxClickBurst', 'workspaceOpacity'];
+function applyFxPreset(id) {
+  const pr = FX_PRESETS[id]; if (!pr) return;
+  Object.assign(S.settings, pr.fx);
+  if (pr.fx.fxParticles) S.settings.animations = true;
+  setSetting('fxParticles', S.settings.fxParticles);
+}
+const presetActive = (id) => Object.entries(FX_PRESETS[id].fx).every(([k, val]) => S.settings[k] === val);
 
 // ---------- índice do cofre ----------
 function indexNote(path, content, mtime, ctime) {
@@ -392,22 +411,31 @@ function showView() {
   if (!t) renderEmpty();
 }
 
-function openNote(path, { newTab = false, mode, heading } = {}) {
+function openNote(path, { newTab = false, mode, heading, focusTitle = false } = {}) {
   if (!S.notes.has(path)) { toast('Nota não encontrada', 'error'); return; }
   const existing = S.tabs.find((t) => t.kind === 'note' && t.path === path);
-  if (existing) activateTab(existing.id);
+  if (existing) { if (mode) existing.mode = mode; activateTab(existing.id); }
   else {
     const cur = activeTab();
     if (!newTab && cur?.kind === 'note') {
       stashTab();
       flushSave(cur.path);
-      cur.path = path; cur.scroll = 0; cur.sel = 0;
+      cur.path = path; cur.scroll = 0; cur.sel = 0; cur.focusTitle = focusTitle;
       if (mode) cur.mode = mode;
       activateTab(cur.id);
-    } else addTab({ kind: 'note', path, mode: mode || S.settings.defaultMode });
+    } else addTab({ kind: 'note', path, mode: mode || S.settings.defaultMode, focusTitle });
   }
   if (heading) setTimeout(() => scrollToHeading(heading), 60);
   closeDrawersIfOverlay();
+}
+
+// título, caminho e janela da nota (sem mexer no texto do editor)
+function updateNoteChrome(note) {
+  if (document.activeElement !== $('#note-title')) $('#note-title').value = note.name;
+  $('#preview-title').textContent = note.name;
+  document.title = `${note.name} — Minimal Note`;
+  const parts = note.folder ? note.folder.split('/') : [];
+  $('#breadcrumbs').innerHTML = [S.vault.name, ...parts].map((p) => `<span>${esc(p)}</span>${icon('chevron', 12)}`).join('') + `<span class="cur">${esc(note.name)}</span>`;
 }
 
 function loadNoteIntoView(tab) {
@@ -416,10 +444,7 @@ function loadNoteIntoView(tab) {
   editor.hideSuggest();
   editor.value = note.content;
   $('#note-title').value = note.name;
-  $('#preview-title').textContent = note.name;
-  document.title = `${note.name} — Minimal Note`;
-  const parts = note.folder ? note.folder.split('/') : [];
-  $('#breadcrumbs').innerHTML = [S.vault.name, ...parts].map((p) => `<span>${esc(p)}</span>${icon('chevron', 12)}`).join('') + `<span class="cur">${esc(note.name)}</span>`;
+  updateNoteChrome(note);
   setMode(tab.mode, true);
   requestAnimationFrame(() => {
     editor.autosize();
@@ -428,7 +453,8 @@ function loadNoteIntoView(tab) {
     if (tab.mode !== 'preview') {
       const p = Math.min(tab.sel || 0, note.content.length);
       editor.ta.setSelectionRange(p, p);
-      if (!note.content) $('#note-title').focus(); else editor.ta.focus({ preventScroll: true });
+      if (!note.content && tab.focusTitle) { $('#note-title').focus(); $('#note-title').select(); } else editor.ta.focus({ preventScroll: true });
+      tab.focusTitle = false;
     }
   });
 }
@@ -444,6 +470,13 @@ function setMode(mode, silent) {
   if (!silent) { persistTabs(); if (mode !== 'preview') editor.ta.focus(); }
 }
 
+// a nota já começa com "# <nome da nota>"? (evita título duplicado na leitura e nas exportações)
+function startsWithOwnTitle(note) {
+  const firstLine = note.content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').split('\n').find((l) => l.trim()) || '';
+  const h1 = /^\s*#\s+(.+?)\s*#*\s*$/.exec(firstLine);
+  return !!h1 && h1[1].trim().toLowerCase() === note.name.toLowerCase();
+}
+
 function renderPreview() {
   const note = activeNote();
   const t = activeTab();
@@ -452,7 +485,7 @@ function renderPreview() {
   const pv = $('#preview');
   pv.replaceChildren(...frag.childNodes);
   // evita título duplicado quando a nota já começa com "# Título"
-  $('#preview-title').hidden = /^\s*#\s/.test(note.content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ''));
+  $('#preview-title').hidden = startsWithOwnTitle(note);
   if (!note.content.trim()) pv.innerHTML = '<p style="color:var(--text-faint)">Nota vazia — pressione Ctrl+E para editar.</p>';
 }
 const renderPreviewSoon = debounce(renderPreview, 120);
@@ -531,14 +564,13 @@ async function renameActiveTitle() {
 }
 
 // ---------- operações de arquivos ----------
-async function createNote({ folder = S.settings.newNoteFolder, name = 'Sem título', content = '', newTab = false } = {}) {
+async function createNote({ folder = S.settings.newNoteFolder, name = 'Sem título', content = '', newTab = false, focusTitle = true } = {}) {
   try {
     const rel = await lumen.fs.create(joinPath(folder, cleanName(name) + '.md'), content);
     indexNote(rel, content);
     await refreshVault();
     if (folder && !S.settings.expanded.includes(folder)) { S.settings.expanded.push(folder); renderTree(); }
-    openNote(rel, { newTab, mode: 'edit' });
-    if (!content) setTimeout(() => { $('#note-title').focus(); $('#note-title').select(); }, 80);
+    openNote(rel, { newTab, mode: 'edit', focusTitle: focusTitle && !content });
     return rel;
   } catch (err) { toast('Não foi possível criar: ' + err.message, 'error'); }
 }
@@ -549,7 +581,7 @@ async function openOrCreateByName(name, opts = {}) {
   const parts = name.split('/');
   const n = parts.pop();
   const folder = parts.length ? parts.join('/') : S.settings.newNoteFolder;
-  await createNote({ folder, name: n, content: '', newTab: opts.newTab });
+  await createNote({ folder, name: n, content: '', newTab: opts.newTab, focusTitle: false });
 }
 
 async function dailyNote() {
@@ -570,6 +602,10 @@ async function renamePath(from, to, isFolder = false) {
       await flushSave(from);
     }
     await lumen.fs.rename(from, to);
+    // edições feitas enquanto o arquivo era renomeado continuam pendentes, agora no novo caminho
+    const moved = (p) => (p === from ? to : isFolder && p.startsWith(from + '/') ? to + p.slice(from.length) : null);
+    const carry = [...S.pending].filter((p) => moved(p));
+    for (const p of carry) { clearTimeout(S.timers.get(p)); S.timers.delete(p); S.pending.delete(p); }
     // atualiza abas
     for (const t of S.tabs) {
       if (t.kind !== 'note') continue;
@@ -580,8 +616,9 @@ async function renamePath(from, to, isFolder = false) {
     for (const [p, n] of [...S.notes]) {
       let np = null;
       if (p === from) np = to; else if (isFolder && p.startsWith(from + '/')) np = to + p.slice(from.length);
-      if (np) { S.notes.delete(p); n.path = np; S.notes.set(np, n); }
+      if (np) { S.notes.delete(p); n.path = np; n.name = baseName(np); n.folder = dirName(np); S.notes.set(np, n); }
     }
+    for (const p of carry) scheduleSave(moved(p));
     if (isFolder) S.settings.expanded = S.settings.expanded.map((e) => (e === from || e.startsWith(from + '/') ? to + e.slice(from.length) : e));
     // atualiza [[links]] quando o nome muda
     let updated = 0;
@@ -591,13 +628,22 @@ async function renamePath(from, to, isFolder = false) {
       for (const n of S.notes.values()) {
         if (!n.links.some((l) => l.toLowerCase() === oldN.toLowerCase())) continue;
         const nc = n.content.replace(re, `$1${newN}`);
-        if (nc !== n.content) { n.content = nc; n.version++; await lumen.fs.write(n.path, nc); updated++; }
+        if (nc !== n.content) { n.content = nc; n.version++; scheduleSave(n.path); updated++; }
       }
     }
     await refreshVault();
-    const t = activeTab();
-    if (t?.kind === 'note') loadNoteIntoView(t);
-    renderTabs(); persistTabs();
+    const t = activeTab(), an = activeNote();
+    if (an) {
+      updateNoteChrome(an);
+      // o texto só é trocado se mudou (ex.: links atualizados nesta nota), mantendo o cursor
+      if (editor.value !== an.content) {
+        const a = editor.ta.selectionStart, b = editor.ta.selectionEnd;
+        editor.value = an.content;
+        editor.ta.setSelectionRange(Math.min(a, an.content.length), Math.min(b, an.content.length));
+        if (t.mode !== 'edit') renderPreview();
+      }
+    }
+    renderTabs(); persistTabs(); markTreeActive();
     toast(updated ? `Renomeado · ${updated} nota(s) com links atualizados` : 'Renomeado', 'success');
   } catch (err) {
     toast(err.message, 'error');
@@ -655,10 +701,9 @@ function renderTree() {
   const activePath = activeTab()?.path;
   const sortItems = (items) => {
     if (S.settings.sort !== 'mtime') return items;
-    return [...items].sort((a, b) => {
-      if (a.type === 'folder' || b.type === 'folder') return 0;
-      return (S.notes.get(b.path)?.mtime || 0) - (S.notes.get(a.path)?.mtime || 0);
-    });
+    const isF = (x) => (x.type === 'folder' ? 0 : 1);
+    return [...items].sort((a, b) => isF(a) - isF(b)
+      || (isF(a) ? (S.notes.get(b.path)?.mtime || 0) - (S.notes.get(a.path)?.mtime || 0) : a.name.localeCompare(b.name, 'pt-BR')));
   };
   const build = (items, depth) => sortItems(items).map((it) => {
     const pad = 8 + depth * 14;
@@ -678,6 +723,12 @@ function renderTree() {
 
 function markTreeActive() {
   const p = activeTab()?.path;
+  // abre as pastas da nota ativa para ela aparecer na árvore
+  if (p && activeTab()?.kind === 'note' && p.includes('/')) {
+    const parts = p.split('/').slice(0, -1);
+    const need = parts.map((_, i) => parts.slice(0, i + 1).join('/')).filter((f) => !S.settings.expanded.includes(f));
+    if (need.length) { S.settings.expanded.push(...need); saveSettings(); renderTree(); return; }
+  }
   $$('#file-tree .tree-item').forEach((el) => el.classList.toggle('active', el.dataset.path === p && el.dataset.type === 'note'));
 }
 
@@ -946,6 +997,9 @@ const COMMANDS = [
   { id: 'font-up', name: 'Aumentar fonte', icon: 'type', key: 'Ctrl +', run: () => setSetting('fontSize', Math.min(26, S.settings.fontSize + 1)) },
   { id: 'font-down', name: 'Diminuir fonte', icon: 'type', key: 'Ctrl -', run: () => setSetting('fontSize', Math.max(11, S.settings.fontSize - 1)) },
   { id: 'theme-creator', name: 'Criador de temas', icon: 'wand', run: () => openSettings('creator') },
+  { id: 'fx-settings', name: 'Partículas e cursor', icon: 'sparkles', run: () => openSettings('effects') },
+  { id: 'fx-toggle', name: 'Ligar/desligar partículas', icon: 'sparkles', run: () => { setSetting('fxParticles', !S.settings.fxParticles); toast(S.settings.fxParticles ? 'Partículas ligadas' : 'Partículas desligadas'); } },
+  ...Object.entries(FX_PRESETS).map(([id, p]) => ({ id: 'fx-' + id, name: `Efeitos: ${p.name}`, icon: 'sparkles', run: () => { applyFxPreset(id); toast(`Efeitos: ${p.name}`); } })),
   { id: 'theme-new', name: 'Criar novo tema', icon: 'wand', run: () => { tcNew(); openSettings('creator'); } },
 ];
 const themeCommands = () => Object.entries(allThemes(S.settings)).map(([k, t]) => ({ id: 'theme-' + k, name: `Tema: ${t.name}`, icon: 'palette', run: () => { S.settings.accent = null; setSetting('theme', k); } }));
@@ -1015,6 +1069,7 @@ function bindPalette() {
 const SECTIONS = [
   { id: 'appearance', name: 'Aparência', icon: 'palette' },
   { id: 'creator', name: 'Criador de temas', icon: 'wand' },
+  { id: 'effects', name: 'Partículas e cursor', icon: 'sparkles' },
   { id: 'typography', name: 'Tipografia', icon: 'type' },
   { id: 'editor', name: 'Editor', icon: 'edit' },
   { id: 'vault', name: 'Cofre e arquivos', icon: 'vault' },
@@ -1081,6 +1136,30 @@ function renderSection() {
   } else if (curSection === 'creator') {
     renderCreator(c);
     return;
+  } else if (curSection === 'effects') {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const pct = (v) => v + '%';
+    c.innerHTML = `<h2>Partículas e cursor</h2><p class="sub">Dê vida ao fundo e ao ponteiro do mouse. Tudo roda num único loop leve, que pausa quando a janela é minimizada.</p>
+      ${!s.animations ? `<p class="fx-hint warn">As animações estão desligadas em Aparência — os efeitos ficam pausados. <button class="btn" id="fx-enable-anim" style="margin-left:6px">Ligar animações</button></p>` : ''}
+      ${reduce ? '<p class="fx-hint warn">O sistema pediu “reduzir movimento”, então os efeitos ficam desligados.</p>' : ''}
+      <div class="set-group"><h4>Estilos prontos</h4><div class="fx-presets">${Object.entries(FX_PRESETS).map(([id, p]) => `
+        <button class="fx-preset${presetActive(id) ? ' active' : ''}" data-fx-preset="${id}"><span class="fx-ic">${icon(id === 'none' ? 'x' : 'sparkles', 16)}</span><b>${p.name}</b><small>${id === 'none' ? 'Sem efeitos' : `${FX_STYLES[p.fx.fxStyle]} · ${FX_CURSORS[p.fx.fxCursor]}`}</small></button>`).join('')}</div></div>
+      <div class="set-group"><h4>Partículas de fundo</h4>
+        ${row('Mostrar partículas', '', toggleCtl('fxParticles'))}
+        ${row('Estilo', '', selectCtl('fxStyle', FX_STYLES))}
+        ${row('Quantidade', '', rangeCtl('fxDensity', 5, 150, 5))}
+        ${row('Velocidade', '', rangeCtl('fxSpeed', 5, 150, 5, pct))}
+        ${row('Tamanho', '', rangeCtl('fxSize', 20, 150, 5, pct))}
+        ${row('Intensidade', 'Brilho e opacidade das partículas.', rangeCtl('fxOpacity', 10, 100, 5, pct))}
+        ${row('Cor', '', `<div class="fx-color-row">${selectCtl('fxColor', FX_COLORS)}<input type="color" class="color-input" data-key="fxCustomColor" value="${s.fxCustomColor}" title="Cor personalizada" ${s.fxColor === 'custom' ? '' : 'hidden'}></div>`)}
+        ${row('Reação ao mouse', 'As partículas fogem ou são atraídas pelo ponteiro.', selectCtl('fxMouse', { none: 'Nenhuma', repel: 'Fugir', attract: 'Atrair' }))}
+        ${row('Camada', 'Na frente: as partículas passam por cima das notas (sem bloquear cliques).', selectCtl('fxLayer', { back: 'Atrás da interface', front: 'Na frente' }))}
+        ${row('Transparência da área de escrita', 'Quanto menor, mais o fundo e as partículas aparecem atrás do texto.', rangeCtl('workspaceOpacity', 40, 100, 2, pct))}
+      </div>
+      <div class="set-group"><h4>Cursor</h4>
+        ${row('Efeito ao mover', '', selectCtl('fxCursor', FX_CURSORS))}
+        ${row('Explosão ao clicar', 'Um estouro de brilhos a cada clique.', toggleCtl('fxClickBurst'))}
+      </div>`;
   } else if (curSection === 'typography') {
     c.innerHTML = `<h2>Tipografia</h2><p class="sub">Fontes e medidas do texto.</p>
       <div class="set-group">
@@ -1118,7 +1197,7 @@ function renderSection() {
     const keys = [['Nova nota', 'Ctrl N'], ['Paleta / abrir nota', 'Ctrl P'], ['Comandos', 'Ctrl Shift P'], ['Buscar no cofre', 'Ctrl Shift F'], ['Edição ↔ leitura', 'Ctrl E'], ['Modo dividido', 'Ctrl \\'], ['Grafo', 'Ctrl G'], ['Nota diária', 'Ctrl Shift D'], ['Fechar aba', 'Ctrl W'], ['Próxima aba', 'Ctrl Tab'], ['Salvar agora', 'Ctrl S'], ['Configurações', 'Ctrl ,'], ['Modo foco', 'F11'], ['Negrito / itálico', 'Ctrl B / Ctrl I'], ['Link', 'Ctrl K'], ['Tarefa', 'Ctrl L'], ['Riscado', 'Ctrl Shift X'], ['Destaque', 'Ctrl Shift H'], ['Indentar', 'Tab / Shift Tab'], ['Fonte maior / menor', 'Ctrl + / Ctrl −']];
     c.innerHTML = `<h2>Atalhos</h2><p class="sub">Atalhos de teclado disponíveis.</p><div class="set-group">${keys.map(([a, k]) => row(a, '', `<kbd>${k}</kbd>`)).join('')}</div>`;
   } else {
-    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.1 · notas em Markdown, locais e suas.</p>
+    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.2 · notas em Markdown, locais e suas.</p>
       <p class="sub">${S.notes.size} notas · ${[...S.notes.values()].reduce((a, n) => a + n.words, 0).toLocaleString('pt-BR')} palavras no cofre</p></div>`;
   }
   bindSection();
@@ -1141,6 +1220,9 @@ function bindSection() {
       requestAnimationFrame(() => editor.autosize());
     });
   });
+  c.querySelectorAll('[data-fx-preset]').forEach((b) => b.addEventListener('click', () => { applyFxPreset(b.dataset.fxPreset); renderSection(); }));
+  $('#fx-enable-anim', c)?.addEventListener('click', () => { setSetting('animations', true); renderSection(); });
+  c.querySelectorAll('select[data-key="fxColor"], select[data-key="fxStyle"], select[data-key="fxCursor"], select[data-key="fxMouse"], select[data-key="fxLayer"], input[data-key="fxParticles"], input[data-key="fxClickBurst"]').forEach((el) => el.addEventListener('change', () => renderSection()));
   c.querySelectorAll('[data-theme]').forEach((b) => b.addEventListener('click', (e) => {
     if (e.target.closest('[data-edit-theme]')) { tcEdit(b.dataset.theme); curSection = 'creator'; openSettings(); return; }
     S.settings.accent = null; setSetting('theme', b.dataset.theme); renderSection();
@@ -1156,7 +1238,8 @@ function bindSection() {
   $('#reset-overrides', c)?.addEventListener('click', () => { const o = { ...S.settings.overrides }; delete o[S.settings.theme]; setSetting('overrides', o); renderSection(); });
   $('#export-theme', c)?.addEventListener('click', () => {
     const s = S.settings;
-    const data = { theme: s.theme, accent: s.accent, overrides: s.overrides[s.theme] || {}, fontUi: s.fontUi, fontEditor: s.fontEditor, fontMono: s.fontMono, fontSize: s.fontSize, lineHeight: s.lineHeight, radius: s.radius, background: s.background, glass: s.glass, customCss: s.customCss };
+    const data = { theme: s.theme, accent: s.accent, overrides: s.overrides[s.theme] || {}, fontUi: s.fontUi, fontEditor: s.fontEditor, fontMono: s.fontMono, fontSize: s.fontSize, lineHeight: s.lineHeight, radius: s.radius, background: s.background, glass: s.glass, customCss: s.customCss, ...Object.fromEntries(FX_KEYS.map((k) => [k, s[k]])) };
+    if (s.customThemes[s.theme]) data.customTheme = s.customThemes[s.theme];
     navigator.clipboard.writeText(JSON.stringify(data, null, 2)); toast('Tema copiado para a área de transferência', 'success');
   });
   $('#import-theme', c)?.addEventListener('click', async () => {
@@ -1164,8 +1247,10 @@ function bindSection() {
     if (!txt) return;
     try {
       const d = JSON.parse(txt);
-      const allowed = ['theme', 'accent', 'fontUi', 'fontEditor', 'fontMono', 'fontSize', 'lineHeight', 'radius', 'background', 'glass', 'customCss'];
-      allowed.forEach((k) => { if (d[k] !== undefined) S.settings[k] = d[k]; });
+      const allowed = ['theme', 'accent', 'fontUi', 'fontEditor', 'fontMono', 'fontSize', 'lineHeight', 'radius', 'background', 'glass', 'customCss', ...FX_KEYS];
+      // só aceita valores do mesmo tipo que o padrão (evita configurações quebradas)
+      allowed.forEach((k) => { if (d[k] !== undefined && (DEFAULT_SETTINGS[k] === null || typeof d[k] === typeof DEFAULT_SETTINGS[k])) S.settings[k] = d[k]; });
+      if (d.customTheme && String(d.theme).startsWith('custom-')) S.settings.customThemes = { ...S.settings.customThemes, [d.theme]: normalizeTheme(d.customTheme) };
       if (!allThemes(S.settings)[S.settings.theme]) S.settings.theme = 'midnight';
       if (d.overrides) S.settings.overrides = { ...S.settings.overrides, [S.settings.theme]: d.overrides };
       setSetting('theme', S.settings.theme); renderSection(); toast('Tema importado', 'success');
@@ -1200,19 +1285,22 @@ function collectCss() {
   }
   const cs = getComputedStyle(document.documentElement);
   const vars = ['--bg', '--bg-3', '--border', '--text', '--text-muted', '--text-faint', '--code-bg', '--accent', '--accent-soft', '--accent-softer', '--hover', '--font-editor', '--font-mono', '--font-size', '--line-height', '--radius', '--radius-sm'].map((v) => `${v}:${cs.getPropertyValue(v)}`).join(';');
-  return `:root{${vars}} body{margin:0;background:var(--bg);color:var(--text)} .wrap{max-width:780px;margin:0 auto;padding:48px 24px} ${css}`;
+  const extra = ['--heading', '--link', '--tag', '--highlight'].map((v) => [v, cs.getPropertyValue(v).trim()]).filter(([, x]) => x).map(([v, x]) => `${v}:${x}`).join(';');
+  return `:root{${vars};${extra};color-scheme:${document.documentElement.dataset.mode || 'dark'}} body{margin:0;background:var(--bg);color:var(--text)} .wrap{max-width:780px;margin:0 auto;padding:48px 24px} ${css}`;
 }
 async function exportHtml() {
   const n = activeNote(); if (!n) return toast('Abra uma nota primeiro', 'error');
-  const body = MD.render(n.content).innerHTML;
-  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(n.name)}</title><style>${collectCss()}</style></head><body><div class="wrap"><h1 class="note-title-static">${esc(n.name)}</h1><article class="markdown">${body}</article></div></body></html>`;
+  const frag = MD.render(n.content);
+  frag.querySelectorAll('.copy-code').forEach((b) => b.remove());
+  const body = frag.innerHTML;
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(n.name)}</title><style>${collectCss()}</style></head><body><div class="wrap">${startsWithOwnTitle(n) ? '' : `<h1 class="note-title-static">${esc(n.name)}</h1>`}<article class="markdown">${body}</article></div></body></html>`;
   const out = await lumen.fs.exportHtml(n.name + '.html', html).catch((e) => toast(e.message, 'error'));
   if (out) toast('Exportado: ' + out, 'success', 4000);
 }
 async function exportPdf() {
   const n = activeNote(); if (!n) return toast('Abra uma nota primeiro', 'error');
   const root = $('#print-root');
-  root.innerHTML = `<h1 class="print-title">${esc(n.name)}</h1>`;
+  root.innerHTML = startsWithOwnTitle(n) ? '' : `<h1 class="print-title">${esc(n.name)}</h1>`;
   const art = document.createElement('article'); art.className = 'markdown';
   art.append(...MD.render(n.content).childNodes);
   root.appendChild(art);
@@ -1517,6 +1605,8 @@ async function init() {
   if (window.innerWidth <= 760) S.settings.leftOpen = false;
   if (window.innerWidth <= 1100) S.settings.rightOpen = false;
   applyAppearance(S.settings);
+  S.fx = new Effects($('#fx-bg'), $('#fx-cursor'));
+  applyEffects();
   bindUI();
   bindKeys();
   applyLayout();
