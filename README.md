@@ -46,7 +46,7 @@ O `.deb` é montado por `build/make-deb.js` a partir de `dist/linux-unpacked`, e
 Instalar no Linux (Debian/Ubuntu):
 
 ```bash
-sudo apt install ./dist/minimal-note_1.4.0_amd64.deb
+sudo apt install ./dist/minimal-note_1.5.0_amd64.deb
 ```
 
 
