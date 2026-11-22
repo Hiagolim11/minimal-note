@@ -19,7 +19,9 @@
     "android:www": "node build/make-www.js",
     "android:assets": "electron build/make-android-assets.js",
     "android:sync": "npm run android:www && cap sync android",
-    "android:apk": "npm run android:sync && cd android && gradlew assembleRelease"
+    "android:apk": "npm run android:sync && cd android && (gradlew assembleRelease || sh gradlew assembleRelease)",
+    "test": "node --test test/unit/*.test.js",
+    "test:e2e": "bash test/e2e/all.sh"
   },
   "license": "MIT",
   "dependencies": {

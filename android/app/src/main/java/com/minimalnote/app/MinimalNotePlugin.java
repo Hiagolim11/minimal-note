@@ -87,6 +87,11 @@ public class MinimalNotePlugin extends Plugin {
 
     // ---------------- caminhos ----------------
 
+    // "/a/files2" não está dentro de "/a/files": compara com o separador
+    private static boolean isUnder(String path, String base) {
+        return path.equals(base) || path.startsWith(base.endsWith("/") ? base : base + "/");
+    }
+
     private File fileOf(PluginCall call, String key) throws IOException {
         String p = call.getString(key);
         if (p == null || p.isEmpty()) throw new IOException("Caminho vazio");
@@ -96,7 +101,7 @@ public class MinimalNotePlugin extends Plugin {
         String ext = Environment.getExternalStorageDirectory().getCanonicalPath();
         String app = getContext().getFilesDir().getCanonicalPath();
         String extApp = getContext().getExternalFilesDir(null) != null ? getContext().getExternalFilesDir(null).getCanonicalPath() : app;
-        if (!(path.startsWith(ext) || path.startsWith(app) || path.startsWith(extApp))) throw new IOException("Caminho não permitido: " + p);
+        if (!(isUnder(path, ext) || isUnder(path, app) || isUnder(path, extApp))) throw new IOException("Caminho não permitido: " + p);
         return f;
     }
 

@@ -1,6 +1,7 @@
 // Minimal Note — processo principal do Electron
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, session } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const fs = require('fs/promises');
 const fsSync = require('fs');
 
@@ -21,6 +22,15 @@ function resolveInVault(rel = '') {
   if (abs !== root && !abs.startsWith(root + path.sep)) {
     throw new Error('Caminho fora do cofre: ' + rel);
   }
+  // um link simbólico dentro do cofre (ex.: num cofre baixado/sincronizado) não pode levar para fora
+  // dele: resolve o trecho do caminho que já existe e confere de novo
+  let existing = abs;
+  while (!fsSync.existsSync(existing) && existing !== root) existing = path.dirname(existing);
+  const realRoot = fsSync.realpathSync(root);
+  const real = path.join(fsSync.realpathSync(existing), path.relative(existing, abs));
+  if (real !== realRoot && !real.startsWith(realRoot + path.sep)) {
+    throw new Error('Caminho fora do cofre (link simbólico): ' + rel);
+  }
   return abs;
 }
 const toRel = (abs) => path.relative(vaultRoot, abs).split(path.sep).join('/');
@@ -33,27 +43,66 @@ async function readSettings() {
   try { return JSON.parse(await fs.readFile(SETTINGS_FILE(), 'utf8')); } catch { return {}; }
 }
 
-async function writeSettings(data) {
+// configurações ficam em memória no processo principal; vaultPath e windowBounds só ele altera
+let settings = {};
+let settingsChain = Promise.resolve();
+function saveSettings() {
+  const json = JSON.stringify(settings, null, 2);
+  // gravações em fila: duas escritas simultâneas no mesmo .tmp corromperiam o arquivo
+  settingsChain = settingsChain.then(async () => {
+    const file = SETTINGS_FILE();
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file + '.tmp', json, 'utf8');
+    await fs.rename(file + '.tmp', file);
+  }).catch((err) => console.error('Falha ao salvar configurações:', err.message));
+  return settingsChain;
+}
+// ao fechar a janela o processo pode acabar antes de uma escrita assíncrona terminar
+function saveSettingsSync() {
   const file = SETTINGS_FILE();
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  const tmp = file + '.tmp';
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-  await fs.rename(tmp, file);
+  fsSync.mkdirSync(path.dirname(file), { recursive: true });
+  fsSync.writeFileSync(file + '.close-tmp', JSON.stringify(settings, null, 2), 'utf8');
+  fsSync.renameSync(file + '.close-tmp', file);
 }
 
+// pastas que o usuário escolheu no diálogo nesta sessão: só elas (ou o cofre salvo) podem virar cofre
+const chosenDirs = new Set();
+const isAllowedVault = (dir) => chosenDirs.has(path.resolve(dir))
+  || (!!settings.vaultPath && path.resolve(dir) === path.resolve(settings.vaultPath));
+
+// caminhos que o próprio app acabou de alterar: o watcher ignora esses eventos
+// (o renderer já sabe da mudança; sem isso cada salvamento relia o cofre inteiro)
+const selfWrites = new Map(); // rel → expira em (ms)
+function markSelf(abs) {
+  if (vaultRoot) selfWrites.set(path.relative(vaultRoot, abs), Date.now() + 1500);
+}
+function isSelf(rel) {
+  const until = selfWrites.get(rel);
+  if (until === undefined) return false;
+  if (until < Date.now()) { selfWrites.delete(rel); return false; }
+  return true;
+}
+
+let tmpSeq = 0;
 // escrita atômica: evita arquivos corrompidos se o app fechar no meio
 async function atomicWrite(abs, content) {
+  markSelf(abs);
   await fs.mkdir(path.dirname(abs), { recursive: true });
-  const tmp = abs + '.lumen-tmp';
-  await fs.writeFile(tmp, content, 'utf8');
-  await fs.rename(tmp, abs);
+  const tmp = `${abs}.${process.pid}-${++tmpSeq}.lumen-tmp`; // único por escrita: duas escritas nunca dividem o .tmp
+  try {
+    await fs.writeFile(tmp, content, 'utf8');
+    await fs.rename(tmp, abs);
+  } catch (err) {
+    await fs.rm(tmp, { force: true }).catch(() => {});
+    throw err;
+  }
 }
 
 async function buildTree(dirAbs) {
   const entries = await fs.readdir(dirAbs, { withFileTypes: true });
   const out = [];
   for (const e of entries) {
-    if (e.name.startsWith('.') || e.name.endsWith('.lumen-tmp') || e.name === 'node_modules') continue;
+    if (e.name.startsWith('.') || e.name.endsWith('.lumen-tmp') || e.name === 'node_modules' || e.isSymbolicLink()) continue;
     const abs = path.join(dirAbs, e.name);
     if (e.isDirectory()) {
       out.push({ type: 'folder', name: e.name, path: toRel(abs), children: await buildTree(abs) });
@@ -71,16 +120,21 @@ async function buildTree(dirAbs) {
   return out;
 }
 
-async function collectNotes(dirAbs, acc = []) {
+// known: { caminho: mtime } que o renderer já tem; notas com o mesmo mtime voltam sem conteúdo
+// (num cofre grande, reler e transferir tudo a cada mudança custava mais de 1 s)
+async function collectNotes(dirAbs, known = null, acc = []) {
   const entries = await fs.readdir(dirAbs, { withFileTypes: true });
   for (const e of entries) {
-    if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+    if (e.name.startsWith('.') || e.name === 'node_modules' || e.isSymbolicLink()) continue;
     const abs = path.join(dirAbs, e.name);
-    if (e.isDirectory()) await collectNotes(abs, acc);
+    if (e.isDirectory()) await collectNotes(abs, known, acc);
     else if (NOTE_EXT.has(path.extname(e.name).toLowerCase())) {
       try {
-        const [content, st] = await Promise.all([fs.readFile(abs, 'utf8'), fs.stat(abs)]);
-        acc.push({ path: toRel(abs), content, mtime: st.mtimeMs, ctime: st.birthtimeMs });
+        const rel = toRel(abs);
+        const st = await fs.stat(abs);
+        const note = { path: rel, mtime: st.mtimeMs, ctime: st.birthtimeMs };
+        if (known?.[rel] !== st.mtimeMs) note.content = await fs.readFile(abs, 'utf8');
+        acc.push(note);
       } catch { /* arquivo sumiu no meio da leitura */ }
     }
   }
@@ -93,6 +147,7 @@ function startWatcher() {
   try {
     watcher = fsSync.watch(vaultRoot, { recursive: true }, (_evt, filename) => {
       if (filename && (filename.endsWith('.lumen-tmp') || filename.split(/[\\/]/).some((p) => p.startsWith('.')))) return;
+      if (filename && isSelf(filename)) return;
       clearTimeout(watchTimer);
       watchTimer = setTimeout(() => win?.webContents.send('vault:changed'), 250);
     });
@@ -172,7 +227,9 @@ function createWindow(bounds) {
     },
   });
 
-  win.loadFile(path.join(__dirname, 'src', 'index.html'));
+  const indexFile = path.join(__dirname, 'src', 'index.html');
+  const indexUrl = pathToFileURL(indexFile).href;
+  win.loadFile(indexFile);
   win.once('ready-to-show', () => {
     if (bounds?.maximized) win.maximize();
     win.show();
@@ -183,8 +240,12 @@ function createWindow(bounds) {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
+  // a janela só pode mostrar a própria interface: qualquer outro arquivo local (ex.: um .html
+  // arrastado para a janela) rodaria com a ponte window.lumen e sem a CSP do app
   win.webContents.on('will-navigate', (e, url) => {
-    if (!url.startsWith('file://')) { e.preventDefault(); if (/^https?:\/\//i.test(url)) shell.openExternal(url); }
+    if (url.split('#')[0] === indexUrl) return;
+    e.preventDefault();
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
   });
 
   const sendState = () => win?.webContents.send('window:state', { maximized: win.isMaximized(), minimized: win.isMinimized() });
@@ -194,12 +255,11 @@ function createWindow(bounds) {
   win.on('minimize', sendState);
   win.on('restore', sendState);
 
-  win.on('close', async () => {
+  win.on('close', () => {
     try {
-      const s = await readSettings();
-      s.windowBounds = { ...win.getNormalBounds(), maximized: win.isMaximized() };
-      await writeSettings(s);
-    } catch { /* ignora */ }
+      settings.windowBounds = { ...win.getNormalBounds(), maximized: win.isMaximized() };
+      saveSettingsSync();
+    } catch (err) { console.error('Falha ao salvar a janela:', err.message); }
   });
 }
 
@@ -209,13 +269,21 @@ const handle = (ch, fn) => ipcMain.handle(ch, async (_e, ...args) => {
   catch (err) { return { ok: false, error: err.message }; }
 });
 
-handle('settings:get', readSettings);
-handle('settings:set', async (data) => { await writeSettings(data); return true; });
+handle('settings:get', async () => settings);
+handle('settings:set', async (data) => {
+  if (!data || typeof data !== 'object') throw new Error('Configurações inválidas');
+  settings = { ...data, vaultPath: settings.vaultPath, windowBounds: settings.windowBounds };
+  await saveSettings();
+  return true;
+});
 
 handle('vault:open', async (dir) => {
   let target = dir;
+  if (target && !isAllowedVault(target)) throw new Error('Pasta não autorizada: escolha o cofre pelo diálogo');
   if (!target || !(await exists(target))) target = await ensureDefaultVault();
   vaultRoot = path.resolve(target);
+  settings.vaultPath = vaultRoot;
+  await saveSettings();
   startWatcher();
   return { root: vaultRoot, name: path.basename(vaultRoot) };
 });
@@ -225,11 +293,13 @@ handle('vault:choose', async () => {
     title: 'Escolha a pasta do cofre',
     properties: ['openDirectory', 'createDirectory'],
   });
-  return r.canceled ? null : r.filePaths[0];
+  if (r.canceled) return null;
+  chosenDirs.add(path.resolve(r.filePaths[0]));
+  return r.filePaths[0];
 });
 
 handle('fs:tree', async () => buildTree(resolveInVault('')));
-handle('fs:readAll', async () => collectNotes(resolveInVault('')));
+handle('fs:readAll', async (known) => collectNotes(resolveInVault(''), known && typeof known === 'object' ? known : null));
 handle('fs:read', async (rel) => fs.readFile(resolveInVault(rel), 'utf8'));
 handle('fs:write', async (rel, content) => { await atomicWrite(resolveInVault(rel), content); return true; });
 
@@ -246,7 +316,9 @@ handle('fs:create', async (rel, content = '') => {
 handle('fs:mkdir', async (rel) => {
   let candidate = rel; let i = 1;
   while (await exists(resolveInVault(candidate))) candidate = `${rel} ${i++}`;
-  await fs.mkdir(resolveInVault(candidate), { recursive: true });
+  const abs = resolveInVault(candidate);
+  markSelf(abs);
+  await fs.mkdir(abs, { recursive: true });
   return candidate;
 });
 
@@ -255,6 +327,7 @@ handle('fs:rename', async (fromRel, toRelPath) => {
   const to = resolveInVault(toRelPath);
   if (from === to) return toRelPath;
   if (await exists(to) && from.toLowerCase() !== to.toLowerCase()) throw new Error('Já existe um item com esse nome');
+  markSelf(from); markSelf(to);
   await fs.mkdir(path.dirname(to), { recursive: true });
   await fs.rename(from, to);
   return toRelPath;
@@ -263,6 +336,7 @@ handle('fs:rename', async (fromRel, toRelPath) => {
 handle('fs:delete', async (rel) => {
   const abs = resolveInVault(rel);
   if (abs === path.resolve(vaultRoot)) throw new Error('Não é possível apagar o cofre');
+  markSelf(abs);
   await shell.trashItem(abs); // vai para a lixeira, recuperável
   return true;
 });
@@ -274,6 +348,7 @@ handle('fs:saveImage', async (relDir, name, bytes) => {
   const base = path.basename(name, ext).replace(/[^\w\-]+/g, '-') || 'imagem';
   let candidate = path.join(dir, base + ext); let i = 1;
   while (await exists(candidate)) candidate = path.join(dir, `${base}-${i++}${ext}`);
+  markSelf(candidate);
   await fs.writeFile(candidate, Buffer.from(bytes));
   return toRel(candidate);
 });
@@ -283,7 +358,9 @@ handle('shell:reveal', async (rel) => { shell.showItemInFolder(resolveInVault(re
 handle('shell:external', async (url) => { if (/^https?:\/\//i.test(url)) await shell.openExternal(url); return true; });
 
 // no modo de teste, salva direto numa pasta em vez de abrir o diálogo
-const saveDialog = (opts) => (process.env.LUMEN_TEST_SAVE
+// modo de teste nunca vale no app instalado: as variáveis de ambiente pulariam o diálogo / rodariam scripts
+const TEST_MODE = !app.isPackaged;
+const saveDialog = (opts) => (TEST_MODE && process.env.LUMEN_TEST_SAVE
   ? { canceled: false, filePath: path.join(process.env.LUMEN_TEST_SAVE, path.basename(opts.defaultPath)) }
   : dialog.showSaveDialog(win, opts));
 
@@ -388,9 +465,11 @@ if (!gotLock) app.quit();
 else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   app.whenReady().then(async () => {
-    const s = await readSettings();
-    createWindow(s.windowBounds);
-    if (process.env.LUMEN_TEST_SCRIPT) win.webContents.once('did-finish-load', runTestScript);
+    settings = await readSettings();
+    // a interface não usa a internet; o que chegar aqui são imagens/estilos remotos dentro das notas
+    session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (_d, cb) => cb({ cancel: settings.remoteImages !== true }));
+    createWindow(settings.windowBounds);
+    if (TEST_MODE && process.env.LUMEN_TEST_SCRIPT) win.webContents.once('did-finish-load', runTestScript);
   });
   app.on('window-all-closed', () => { watcher?.close(); app.quit(); });
 }

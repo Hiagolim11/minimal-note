@@ -1,0 +1,5 @@
+mkdir -p "$VAULT/A" "$VAULT/B"
+echo "nota A" > "$VAULT/A/Nota.md"; echo "nota B" > "$VAULT/B/Nota.md"
+printf '[[Nota]] e [[Nota|apelido]] e [[Nota#Seção]]\n' > "$VAULT/A/ref.md"
+printf '[[Nota]] daqui é a B\n' > "$VAULT/B/ref.md"
+printf '[[A/Nota]] e [[B/Nota]]\n' > "$VAULT/raiz.md"

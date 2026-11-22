@@ -15,13 +15,13 @@ class MarkdownEditor {
   }
 
   get value() { return this.ta.value; }
-  set value(v) { this.ta.value = v; this.autosize(); this.highlight(); }
+  set value(v) { this.ta.value = v; this.lastLen = v.length; this.autosize(); this.highlight(); }
 
   // ---- realce de sintaxe (só cores: não altera a largura do texto) ----
   highlight() {
     if (!this.hl) this.hl = document.getElementById('editor-hl');
     const v = this.ta.value;
-    if (v.length > 300000) { this.hl.textContent = v + '\n'; return; }
+    if (v.length > 300000) { this.hl.textContent = v + '\n'; this.hlLines = null; return; }
     const E = MD.esc;
     const inline = (s) => {
       let out = '', last = 0;
@@ -45,7 +45,19 @@ class MarkdownEditor {
     const lines = v.split('\n');
     const out = [];
     let inCode = false, inFm = lines[0] === '---';
+    // HTML de cada linha em cache (a mesma linha no mesmo estado sempre gera o mesmo HTML)
+    const cache = this.hlCache || (this.hlCache = new Map());
+    if (cache.size > 50000) cache.clear();
     lines.forEach((line, i) => {
+      if (!inFm && !inCode) {
+        const hit = cache.get(line);
+        if (hit !== undefined) { out.push(hit); if (/^\s*(```|~~~)/.test(line)) inCode = true; return; }
+      }
+      const n = out.length, wasPlain = !inFm && !inCode;
+      lineHtml(line, i);
+      if (wasPlain) cache.set(line, out[n]);
+    });
+    function lineHtml(line, i) {
       if (inFm) { out.push(`<span class="hl-fm">${E(line)}</span>`); if (i > 0 && line === '---') inFm = false; return; }
       if (/^\s*(```|~~~)/.test(line)) { inCode = !inCode; out.push(`<span class="hl-fence">${E(line)}</span>`); return; }
       if (inCode) { out.push(`<span class="hl-code">${E(line)}</span>`); return; }
@@ -61,8 +73,33 @@ class MarkdownEditor {
         (task ? `<span class="hl-list">${E(task)}</span>` : '') +
         (done ? `<span class="hl-done">${inline(rest)}</span>` : inline(rest)),
       );
-    });
-    this.hl.innerHTML = out.join('\n') + '\n ';
+    }
+    this.renderLines(out);
+  }
+
+  // uma <div> por linha e só as linhas alteradas são trocadas: refazer o HTML da nota inteira
+  // custava centenas de ms por tecla em notas longas (o layout do bloco todo era refeito)
+  renderLines(out) {
+    const hl = this.hl, prev = this.hlLines;
+    const html = (l) => `<div>${l || '<br>'}</div>`;
+    if (!prev || hl.children.length !== prev.length) {
+      hl.innerHTML = out.map(html).join('');
+    } else {
+      let a = 0, b = 0;
+      while (a < out.length && a < prev.length && out[a] === prev[a]) a++;
+      while (b < out.length - a && b < prev.length - a && out[out.length - 1 - b] === prev[prev.length - 1 - b]) b++;
+      for (let k = prev.length - b - 1; k >= a; k--) hl.children[k].remove();
+      if (out.length - b > a) {
+        const t = document.createElement('template');
+        t.innerHTML = out.slice(a, out.length - b).map(html).join('');
+        hl.insertBefore(t.content, hl.children[a] || null);
+      }
+    }
+    this.hlLines = out;
+  }
+
+  grow() {
+    if (this.ta.scrollHeight > this.ta.clientHeight) this.ta.style.height = this.ta.scrollHeight + 'px';
   }
 
   autosize() {
@@ -145,7 +182,9 @@ class MarkdownEditor {
   bind() {
     const ta = this.ta;
     ta.addEventListener('input', () => {
-      this.autosize();
+      // texto cresceu: basta crescer a caixa (height=auto força um layout extra do texto inteiro)
+      if (ta.value.length >= (this.lastLen ?? 0)) this.grow(); else this.autosize();
+      this.lastLen = ta.value.length;
       this.highlight();
       this.onChange?.(ta.value);
       this.updateSuggest();

@@ -104,6 +104,7 @@ const DEFAULT_SETTINGS = {
   workspaceOpacity: 88,  // transparência da área de escrita (deixa o fundo aparecer)
   defaultMode: 'edit',
   spellcheck: true,
+  remoteImages: false, // imagens da internet nas notas (desligado: nada é baixado ao abrir uma nota)
   autosaveDelay: 600,
   smartLists: true,
   autoPair: true,

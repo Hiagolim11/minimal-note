@@ -27,6 +27,13 @@ npm install
 npm start
 ```
 
+## Testes
+
+```bash
+npm test           # testes unitários (temas, Markdown)
+npm run test:e2e   # abre o app num cofre temporário e roda os roteiros de test/e2e (Linux, precisa de tela ou xvfb-run)
+```
+
 ## Gerar instaladores
 
 ```bash
@@ -39,7 +46,7 @@ O `.deb` é montado por `build/make-deb.js` a partir de `dist/linux-unpacked`, e
 Instalar no Linux (Debian/Ubuntu):
 
 ```bash
-sudo apt install ./dist/minimal-note_1.3.0_amd64.deb
+sudo apt install ./dist/minimal-note_1.4.0_amd64.deb
 ```
 
 

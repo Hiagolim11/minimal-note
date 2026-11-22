@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld('lumen', {
   },
   fs: {
     tree: () => call('fs:tree'),
-    readAll: () => call('fs:readAll'),
+    readAll: (known) => call('fs:readAll', known),
     read: (p) => call('fs:read', p),
     write: (p, c) => call('fs:write', p, c),
     create: (p, c) => call('fs:create', p, c),

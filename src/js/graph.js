@@ -26,10 +26,13 @@ class GraphView {
   setData({ nodes, edges }) {
     const old = this.byId;
     this.byId = new Map();
-    const w = this.width || 800, h = this.height || 600;
+    // área inicial cresce com √N (o layout final ocupa ~45px·√N): com milhares de nós todos
+    // começando no tamanho da tela, a simulação passava os primeiros segundos só separando-os
+    const spread = 45 * Math.sqrt(nodes.length);
+    const w = Math.max((this.width || 800) * 0.6, spread), h = Math.max((this.height || 600) * 0.6, spread);
     this.nodes = nodes.map((n) => {
       const prev = old.get(n.id);
-      const node = { ...n, x: prev?.x ?? (Math.random() - 0.5) * w * 0.6, y: prev?.y ?? (Math.random() - 0.5) * h * 0.6, vx: 0, vy: 0, deg: 0 };
+      const node = { ...n, x: prev?.x ?? (Math.random() - 0.5) * w, y: prev?.y ?? (Math.random() - 0.5) * h, vx: 0, vy: 0, deg: 0 };
       this.byId.set(n.id, node);
       return node;
     });
@@ -67,19 +70,31 @@ class GraphView {
 
   tick() {
     const N = this.nodes, a = this.alpha;
-    // repulsão (n²; adequado até ~1500 nós)
-    for (let i = 0; i < N.length; i++) {
-      const p = N[i];
-      for (let j = i + 1; j < N.length; j++) {
-        const q = N[j];
-        let dx = q.x - p.x, dy = q.y - p.y;
-        let d2 = dx * dx + dy * dy;
-        if (d2 < 0.01) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d2 = 0.5; }
-        if (d2 > 250000) continue;
-        const f = (900 / d2) * a;
-        const d = Math.sqrt(d2);
-        const fx = (dx / d) * f * 10, fy = (dy / d) * f * 10;
-        p.vx -= fx; p.vy -= fy; q.vx += fx; q.vy += fy;
+    // repulsão só entre nós a até 500px (d² ≤ 250000). Uma grade de células de 500px compara cada
+    // nó só com as 9 células em volta — mesmo resultado do laço n², mas viável com milhares de nós
+    const repel = (p, q) => {
+      let dx = q.x - p.x, dy = q.y - p.y;
+      let d2 = dx * dx + dy * dy;
+      if (d2 < 0.01) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d2 = 0.5; }
+      if (d2 > 250000) return;
+      const f = (900 / d2) * a;
+      const d = Math.sqrt(d2);
+      const fx = (dx / d) * f * 10, fy = (dy / d) * f * 10;
+      p.vx -= fx; p.vy -= fy; q.vx += fx; q.vy += fy;
+    };
+    const C = 500, key = (cx, cy) => cx * 1e6 + cy, grid = new Map();
+    for (const n of N) {
+      const k = key(Math.floor(n.x / C), Math.floor(n.y / C));
+      const cell = grid.get(k);
+      if (cell) cell.push(n); else grid.set(k, [n]);
+    }
+    for (const [k, cell] of grid) {
+      for (let i = 0; i < cell.length; i++) for (let j = i + 1; j < cell.length; j++) repel(cell[i], cell[j]);
+      const cx = Math.round(k / 1e6), cy = k - cx * 1e6;
+      // metade das vizinhas, para cada par de células ser visitado uma vez só
+      for (const [ox, oy] of [[1, -1], [1, 0], [1, 1], [0, 1]]) {
+        const other = grid.get(key(cx + ox, cy + oy));
+        if (other) for (const p of cell) for (const q of other) repel(p, q);
       }
     }
     // molas
