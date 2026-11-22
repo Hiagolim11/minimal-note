@@ -4,3 +4,9 @@ dist/
 .DS_Store
 Thumbs.db
 www/
+
+# chaves de assinatura do Android (nunca no repositório)
+*.jks
+*.keystore
+*signing.properties
+android/app/release/

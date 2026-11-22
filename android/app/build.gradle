@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+// Assinatura da versão final: a chave fica FORA do repositório.
+// Arquivo de propriedades (storeFile, storePassword, keyAlias, keyPassword) em
+// MINIMAL_NOTE_SIGNING ou ~/.android/minimal-note-signing.properties
+def signing = new Properties()
+def signingFile = file(System.getenv('MINIMAL_NOTE_SIGNING') ?: "${System.getProperty('user.home')}/.android/minimal-note-signing.properties")
+if (signingFile.exists()) signingFile.withInputStream { signing.load(it) }
+
 android {
     namespace "com.minimalnote.app"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +14,8 @@ android {
         applicationId "com.minimalnote.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 10200
-        versionName "1.2.0"
+        versionCode 10400
+        versionName "1.4.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +23,19 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (signing.storeFile) {
+                storeFile file(signing.storeFile)
+                storePassword signing.storePassword
+                keyAlias signing.keyAlias
+                keyPassword signing.keyPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            if (signing.storeFile) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

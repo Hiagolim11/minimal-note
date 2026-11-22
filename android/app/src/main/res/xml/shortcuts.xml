@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="new_note" android:enabled="true" android:icon="@drawable/ic_sc_new"
+        android:shortcutShortLabel="@string/sc_new" android:shortcutLongLabel="@string/sc_new">
+        <intent android:action="com.minimalnote.app.NEW_NOTE" android:targetPackage="com.minimalnote.app" android:targetClass="com.minimalnote.app.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="daily_note" android:enabled="true" android:icon="@drawable/ic_sc_daily"
+        android:shortcutShortLabel="@string/sc_daily" android:shortcutLongLabel="@string/sc_daily">
+        <intent android:action="com.minimalnote.app.DAILY_NOTE" android:targetPackage="com.minimalnote.app" android:targetClass="com.minimalnote.app.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="search" android:enabled="true" android:icon="@drawable/ic_sc_search"
+        android:shortcutShortLabel="@string/sc_search" android:shortcutLongLabel="@string/sc_search">
+        <intent android:action="com.minimalnote.app.SEARCH" android:targetPackage="com.minimalnote.app" android:targetClass="com.minimalnote.app.MainActivity" />
+    </shortcut>
+</shortcuts>

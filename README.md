@@ -18,7 +18,7 @@ App de notas em Markdown, local e personalizável, inspirado no Obsidian — fei
 - **CSS personalizado** e exportação/importação de temas em JSON (texto ou arquivo)
 - Exportação para **HTML** e **PDF**
 - Layout **responsivo** (barras laterais viram gavetas em telas estreitas e, no celular, a faixa de ícones vira uma barra de navegação embaixo)
-- **App Android** com a mesma interface: notas em `Documentos/Minimal Note`, botão voltar, lixeira do cofre (`.lixeira`) e exportação HTML
+- **App Android** com a mesma interface: cofre em qualquer pasta do aparelho (ex.: sincronizada), barra de formatação acima do teclado, compartilhar textos/links para virar nota, “Abrir com” para arquivos `.md`, atalhos no ícone (nova nota, nota diária, buscar), PDF pela impressão do Android, backup em `.zip` e lixeira do cofre
 
 ## Desenvolvimento
 
@@ -45,18 +45,34 @@ sudo apt install ./dist/minimal-note_1.3.0_amd64.deb
 
 ## Android (APK)
 
-O app Android usa o [Capacitor](https://capacitorjs.com) com a mesma interface de `src/`. A ponte `src/js/android-bridge.js` implementa a API `window.lumen` usando os plugins Filesystem e App.
+O app Android usa o [Capacitor](https://capacitorjs.com) com a mesma interface de `src/`.
+
+- `src/js/android-bridge.js` implementa a API `window.lumen` no Android
+- `android/app/src/main/java/com/minimalnote/app/MinimalNotePlugin.java` é o plugin nativo: arquivos do cofre (com acesso a todos os arquivos, se o usuário permitir), textos e arquivos recebidos de outros apps, atalhos do ícone, compartilhar, impressão/PDF, backup `.zip` e cores das barras do sistema
+- `MainActivity.java` afasta a WebView das barras do sistema **e do teclado** no Android 15+ (tela de ponta a ponta)
+- `src/js/mobile.js` cuida da barra de formatação, do teclado e do gesto de abrir os arquivos pela borda
 
 Requisitos: JDK 21 e Android SDK (plataforma 35). Em seguida:
 
 ```bash
 npm install
-npm run android:apk      # gera android/app/build/outputs/apk/debug/app-debug.apk
+npm run android:apk      # gera android/app/build/outputs/apk/release/app-release.apk
 ```
 
-- `npm run android:www` gera a pasta `www/` (interface + dependências, sem `node_modules`)
+O APK final é assinado com uma chave que **não** fica no repositório. Crie um arquivo de propriedades em `~/.android/minimal-note-signing.properties` (ou aponte a variável `MINIMAL_NOTE_SIGNING` para ele):
+
+```properties
+storeFile=C:/caminho/minimal-note-release.jks
+storePassword=...
+keyAlias=minimalnote
+keyPassword=...
+```
+
+Sem esse arquivo o APK de release sai sem assinatura (use `gradlew assembleDebug` para testar). Guarde a chave com cuidado: atualizações só instalam por cima se forem assinadas com a mesma chave.
+
+- `npm run android:www` gera a pasta `www/` (interface, runtime do Capacitor e dependências, sem `node_modules`)
 - `npm run android:assets` recria ícones e tela de abertura a partir de `build/icon.png` e ajusta a versão
-- As notas ficam em `Documentos/Minimal Note` (ou na pasta privada do app, se o Android não permitir)
+- No primeiro uso o app pergunta onde guardar as notas: em `Documentos/Minimal Note` (com acesso aos arquivos) ou na pasta privada do app. Dá para trocar depois em **Configurações → Cofre e arquivos**
 - No Windows, faça o build numa pasta de caminho curto (ex.: `C:\dev\minimal-note`): os caminhos do Gradle passam do limite de 260 caracteres
 
 ## Atalhos principais

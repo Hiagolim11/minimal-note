@@ -34,7 +34,7 @@ function toast(msg, type = 'info', ms = 2600) {
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 220); }, ms);
 }
 
-function dialog({ title, msg = '', input = null, ok = 'OK', danger = false }) {
+function dialog({ title, msg = '', input = null, ok = 'OK', cancel = 'Cancelar', danger = false }) {
   return new Promise((resolve) => {
     const ov = $('#dialog'), inp = $('#dialog-input'), okBtn = $('#dialog-ok');
     $('#dialog-title').textContent = title;
@@ -42,6 +42,7 @@ function dialog({ title, msg = '', input = null, ok = 'OK', danger = false }) {
     inp.hidden = input === null;
     inp.value = input ?? '';
     okBtn.textContent = ok;
+    $('#dialog-cancel').textContent = cancel;
     okBtn.classList.toggle('danger', danger);
     ov.hidden = false;
     setTimeout(() => { if (input !== null) { inp.focus(); inp.select(); } else okBtn.focus(); }, 30);
@@ -133,7 +134,10 @@ function applyEffects() {
   const v = (k) => cs.getPropertyValue(k).trim();
   const accent = v('--accent') || '#8b7bff';
   const theme = [...new Set([accent, v('--link'), v('--tag'), v('--heading'), v('--text-muted')].filter((c) => /^#[0-9a-f]{6,8}$/i.test(c)))];
-  S.fx.configure(S.settings, { accent, theme, dark: document.documentElement.dataset.mode !== 'light' });
+  // no celular: menos partículas; no modo de economia de bateria, efeitos desligados
+  let cfg = S.settings;
+  if (IS_ANDROID) cfg = lumen.power?.() ? { ...cfg, fxParticles: false, fxCursor: 'off', fxClickBurst: false } : { ...cfg, fxDensity: Math.round(cfg.fxDensity * 0.7) };
+  S.fx.configure(cfg, { accent, theme, dark: document.documentElement.dataset.mode !== 'light' });
 }
 const FX_KEYS = ['fxParticles', 'fxStyle', 'fxDensity', 'fxSpeed', 'fxSize', 'fxOpacity', 'fxColor', 'fxCustomColor', 'fxMouse', 'fxLayer', 'fxCursor', 'fxClickBurst', 'workspaceOpacity'];
 function applyFxPreset(id) {
@@ -145,7 +149,8 @@ function applyFxPreset(id) {
 const presetActive = (id) => Object.entries(FX_PRESETS[id].fx).every(([k, val]) => S.settings[k] === val);
 
 // "Mostrar no Explorer" só existe no computador
-const CAN_REVEAL = window.lumen?.platform !== 'android';
+const IS_ANDROID = window.lumen?.platform === 'android';
+const CAN_REVEAL = !IS_ANDROID;
 
 // ---------- índice do cofre ----------
 function indexNote(path, content, mtime, ctime) {
@@ -243,7 +248,9 @@ async function openVault(dir) {
   S.settings.vaultPath = v.root;
   saveSettings();
   await refreshVault();
-  if (!switched && S.settings.openTabs?.length) {
+  // reabrir o mesmo cofre (ex.: escolher a mesma pasta) não duplica as abas
+  if (!switched && S.tabs.length) { /* mantém as abas atuais */ }
+  else if (!switched && S.settings.openTabs?.length) {
     for (const t of S.settings.openTabs) {
       if (t.kind === 'graph') addTab({ kind: 'graph' }, false);
       else if (S.notes.has(t.path)) addTab({ kind: 'note', path: t.path, mode: t.mode }, false);
@@ -779,6 +786,7 @@ function bindTree() {
         { label: 'Abrir em nova aba', icon: 'plus', run: () => openNote(path, { newTab: true }) },
         { label: 'Renomear', icon: 'edit', run: async () => { const n = await promptName('Renomear nota', baseName(path)); if (n && cleanName(n)) renamePath(path, joinPath(dirName(path), cleanName(n) + (path.match(/\.\w+$/)?.[0] || '.md'))); } },
         { label: 'Duplicar', icon: 'copy', run: () => duplicateNote(path) },
+        ...(IS_ANDROID ? [{ label: 'Compartilhar', icon: 'external', run: () => shareNote(path) }] : []),
       );
       else items.push({ label: 'Copiar link de incorporação', icon: 'link', run: () => { navigator.clipboard.writeText(`![[${path}]]`); toast('Link copiado'); } });
       items.push(
@@ -996,7 +1004,11 @@ const COMMANDS = [
   ...(CAN_REVEAL ? [{ id: 'reveal', name: 'Mostrar nota no Explorer', icon: 'external', run: () => { const n = activeNote(); if (n) lumen.shell.reveal(n.path); } }] : []),
   { id: 'export-html', name: 'Exportar nota como HTML', icon: 'download', run: () => exportHtml() },
   { id: 'export-pdf', name: 'Exportar nota como PDF', icon: 'download', run: () => exportPdf() },
-  { id: 'switch-vault', name: 'Trocar de cofre', icon: 'vault', run: () => chooseVault() },
+  { id: 'switch-vault', name: IS_ANDROID ? 'Escolher pasta do cofre' : 'Trocar de cofre', icon: 'vault', run: () => chooseVault() },
+  ...(IS_ANDROID ? [
+    { id: 'share-note', name: 'Compartilhar nota', icon: 'external', run: () => shareNote() },
+    { id: 'backup', name: 'Fazer backup do cofre (.zip)', icon: 'download', run: () => backupVault() },
+  ] : []),
   { id: 'reload', name: 'Recarregar cofre', icon: 'refresh', run: () => refreshVault().then(() => toast('Cofre recarregado')) },
   { id: 'font-up', name: 'Aumentar fonte', icon: 'type', key: 'Ctrl +', run: () => setSetting('fontSize', Math.min(26, S.settings.fontSize + 1)) },
   { id: 'font-down', name: 'Diminuir fonte', icon: 'type', key: 'Ctrl -', run: () => setSetting('fontSize', Math.max(11, S.settings.fontSize - 1)) },
@@ -1188,7 +1200,11 @@ function renderSection() {
   } else if (curSection === 'vault') {
     c.innerHTML = `<h2>Cofre e arquivos</h2><p class="sub">Suas notas são arquivos .md comuns nesta pasta.</p>
       <div class="set-group">
-        ${row('Cofre atual', esc(S.vault?.root || ''), `<button class="btn" id="set-reveal">${icon('external', 15)}Abrir pasta</button><button class="btn primary" id="set-switch">${icon('vault', 15)}Trocar</button>`)}
+        ${IS_ANDROID
+          ? row('Cofre atual', esc(S.vault?.root || '') + (S.vault?.kind === 'app' ? ' — pasta privada: é apagada se o app for desinstalado. Faça backups ou escolha uma pasta do aparelho.' : ''), `<button class="btn primary" id="set-switch">${icon('vault', 15)}Escolher pasta</button>`)
+            + row('Backup', 'Gera um .zip com todas as notas e anexos para salvar no Drive, enviar por e-mail etc.', `<button class="btn" id="set-backup">${icon('download', 15)}Fazer backup (.zip)</button>`)
+            + row('Lixeira do cofre', 'Notas excluídas ficam na pasta .lixeira até você esvaziá-la.', `<span class="val" id="trash-count">…</span><button class="btn" id="set-empty-trash">${icon('trash', 15)}Esvaziar</button>`)
+          : row('Cofre atual', esc(S.vault?.root || ''), `<button class="btn" id="set-reveal">${icon('external', 15)}Abrir pasta</button><button class="btn primary" id="set-switch">${icon('vault', 15)}Trocar</button>`)}
         ${row('Pasta para novas notas', 'Vazio = raiz do cofre.', `<input type="text" data-key="newNoteFolder" value="${esc(s.newNoteFolder)}" placeholder="(raiz)">`)}
         ${row('Pasta de anexos', 'Onde imagens coladas são salvas.', `<input type="text" data-key="attachmentsFolder" value="${esc(s.attachmentsFolder)}">`)}
         ${row('Pasta das notas diárias', '', `<input type="text" data-key="dailyFolder" value="${esc(s.dailyFolder)}">`)}
@@ -1201,7 +1217,7 @@ function renderSection() {
     const keys = [['Nova nota', 'Ctrl N'], ['Paleta / abrir nota', 'Ctrl P'], ['Comandos', 'Ctrl Shift P'], ['Buscar no cofre', 'Ctrl Shift F'], ['Edição ↔ leitura', 'Ctrl E'], ['Modo dividido', 'Ctrl \\'], ['Grafo', 'Ctrl G'], ['Nota diária', 'Ctrl Shift D'], ['Fechar aba', 'Ctrl W'], ['Próxima aba', 'Ctrl Tab'], ['Salvar agora', 'Ctrl S'], ['Configurações', 'Ctrl ,'], ['Modo foco', 'F11'], ['Negrito / itálico', 'Ctrl B / Ctrl I'], ['Link', 'Ctrl K'], ['Tarefa', 'Ctrl L'], ['Riscado', 'Ctrl Shift X'], ['Destaque', 'Ctrl Shift H'], ['Indentar', 'Tab / Shift Tab'], ['Fonte maior / menor', 'Ctrl + / Ctrl −']];
     c.innerHTML = `<h2>Atalhos</h2><p class="sub">Atalhos de teclado disponíveis.</p><div class="set-group">${keys.map(([a, k]) => row(a, '', `<kbd>${k}</kbd>`)).join('')}</div>`;
   } else {
-    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.3 · notas em Markdown, locais e suas.</p>
+    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.4 · notas em Markdown, locais e suas.</p>
       <p class="sub">${S.notes.size} notas · ${[...S.notes.values()].reduce((a, n) => a + n.words, 0).toLocaleString('pt-BR')} palavras no cofre</p></div>`;
   }
   bindSection();
@@ -1264,10 +1280,19 @@ function bindSection() {
   $('#css-editor', c)?.addEventListener('keydown', (e) => { if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '  '); } });
   $('#set-switch', c)?.addEventListener('click', async () => { await chooseVault(); renderSection(); });
   $('#set-reveal', c)?.addEventListener('click', () => lumen.shell.reveal(''));
+  $('#set-backup', c)?.addEventListener('click', backupVault);
+  if ($('#trash-count', c)) {
+    const upd = async () => { const n = await lumen.vault.trashCount(); const el = $('#trash-count', c); if (el) el.textContent = n ? `${n} ${n > 1 ? 'itens' : 'item'}` : 'vazia'; $('#set-empty-trash', c).disabled = !n; };
+    upd();
+    $('#set-empty-trash', c).addEventListener('click', async () => {
+      if (!await confirmBox('Esvaziar lixeira?', 'Os itens da pasta .lixeira serão apagados de vez. Isso não pode ser desfeito.', 'Esvaziar')) return;
+      try { await lumen.vault.emptyTrash(); toast('Lixeira esvaziada', 'success'); } catch (e) { toast(e.message, 'error'); }
+      upd();
+    });
+  }
 }
 
 async function chooseVault() {
-  if (lumen.platform === 'android') return toast('No Android o cofre fica em ' + (S.vault?.root || 'Documentos/Minimal Note'));
   const dir = await lumen.vault.choose();
   if (!dir) return;
   await openVault(dir);
@@ -1280,6 +1305,48 @@ function cycleTheme() {
   S.settings.accent = null;
   setSetting('theme', next);
   toast(`Tema: ${all[next].name}`);
+}
+
+// ---------- Android: compartilhar, backup, textos recebidos ----------
+async function shareNote(path = activeNote()?.path) {
+  const n = path && S.notes.get(path); if (!n) return toast('Abra uma nota primeiro', 'error');
+  await flushSave(n.path);
+  lumen.share?.(n.name, n.content);
+}
+async function backupVault() {
+  await flushAll();
+  try { const r = await lumen.vault.backup(); toast(`Backup pronto: ${r.files} arquivos`, 'success'); } catch (e) { toast('Não foi possível criar o backup: ' + e.message, 'error'); }
+}
+const safeName = (s) => String(s || '').replace(/[\\/:*?"<>|#^[\]]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+async function handleIntent(it) {
+  if (!it || !S.vault) return;
+  if (it.type === 'new') return createNote({});
+  if (it.type === 'daily') return dailyNote();
+  if (it.type === 'search') return showLeftPanel('search');
+  if (it.type === 'error') return toast('Não foi possível abrir: ' + it.message, 'error', 5000);
+  // arquivo .md/.txt enviado por "Compartilhar" (como anexo): importa com o nome dele
+  if (it.type === 'share' && it.name && /\.(md|markdown|txt)$/i.test(it.name)) it = { ...it, type: 'file' };
+  const text = String(it.text || '').replace(/\r\n?/g, '\n');
+  if (it.type === 'file') {
+    const name = safeName(String(it.name || '').replace(/\.(md|markdown|txt)$/i, '')) || 'Nota importada';
+    const same = [...S.notes.values()].find((n) => n.content === text);
+    if (same) { openNote(same.path, { mode: 'preview' }); return toast('Essa nota já está no cofre'); }
+    const rel = await createNote({ name, content: text, focusTitle: false });
+    if (rel) toast('Nota importada para o cofre', 'success');
+    return;
+  }
+  if (it.type === 'share') {
+    const t = text.trim();
+    if (!t) return;
+    const url = /^https?:\/\/\S+$/.test(t) ? t : null;
+    const subject = safeName(it.subject);
+    let name = subject;
+    if (!name && url) { try { name = 'Link ' + new URL(url).hostname.replace(/^www\./, ''); } catch { name = 'Link'; } }
+    if (!name) name = safeName(t.split('\n').find((l) => l.trim()).replace(/^[#>*\-\s]+/, '').slice(0, 60));
+    const content = url ? `[${subject || url}](${url})\n` : t + '\n';
+    const rel = await createNote({ name: name || 'Compartilhado', content, focusTitle: false });
+    if (rel) toast('Nota criada a partir do compartilhamento', 'success');
+  }
 }
 
 // ---------- exportação ----------
@@ -1355,7 +1422,8 @@ function showLeftPanel(p, silent) {
     if (!S.settings.leftOpen) { S.settings.leftOpen = true; applyLayout(); }
     saveSettings();
   }
-  if (p === 'search') { runSearch(); setTimeout(() => $('#search-input').focus(), 20); }
+  // só foca a busca quando o usuário abre o painel (não a cada atualização do layout)
+  if (p === 'search') { runSearch(); if (!silent) setTimeout(() => $('#search-input').focus(), 20); }
   if (p === 'tags') renderTags();
 }
 function toggleMode() {
@@ -1628,6 +1696,9 @@ async function init() {
     await openVault(null);
   }
   lumen.vault.onChange(debounce(refreshVault, 200));
+  lumen.onIntent?.((it) => handleIntent(it).catch((e) => toast(e.message, 'error')));
+  // app indo para o fundo (celular: trocar de app, bloquear a tela): salva já o que estiver pendente
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flushAll(); });
   $('#app').style.opacity = 1;
 }
 

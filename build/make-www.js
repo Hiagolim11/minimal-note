@@ -18,6 +18,9 @@ fs.cpSync(src, out, { recursive: true });
 const vendor = [
   ['marked/lib/marked.umd.js', 'marked/marked.umd.js'],
   ['dompurify/dist/purify.min.js', 'dompurify/purify.min.js'],
+  // runtime JS do Capacitor: cria os proxies Capacitor.Plugins.* (registerPlugin) a partir
+  // dos PluginHeaders que o app nativo injeta. Sem ele nenhum plugin nativo fica acessível.
+  ['@capacitor/core/dist/capacitor.js', 'capacitor/capacitor.js'],
 ];
 for (const f of ['inter', 'outfit', 'lora', 'jetbrains-mono']) {
   vendor.push([`@fontsource-variable/${f}/index.css`, `fonts/${f}/index.css`]);
@@ -38,7 +41,8 @@ html = html
   .replace(/\.\.\/node_modules\/@fontsource-variable\/([\w-]+)\/index\.css/g, 'vendor/fonts/$1/index.css');
 if (html.includes('node_modules')) { console.error('Ainda há referências a node_modules em www/index.html'); process.exit(1); }
 // a ponte do Android precisa existir antes de qualquer script do app
-html = html.replace('<script src="vendor/marked/marked.umd.js"></script>', '<script src="js/android-bridge.js"></script>\n  <script src="vendor/marked/marked.umd.js"></script>');
+html = html.replace('<script src="vendor/marked/marked.umd.js"></script>', '<script src="vendor/capacitor/capacitor.js"></script>\n  <script src="js/android-bridge.js"></script>\n  <script src="vendor/marked/marked.umd.js"></script>');
+if (!html.includes('vendor/capacitor/capacitor.js')) { console.error('Não foi possível injetar o runtime do Capacitor'); process.exit(1); }
 // viewport para celular: sem zoom acidental, área segura (notch/barra de gestos)
 html = html.replace('<meta name="viewport" content="width=device-width, initial-scale=1">',
   '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">');

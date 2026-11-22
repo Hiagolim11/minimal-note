@@ -1,7 +1,7 @@
 {
   "name": "minimal-note",
   "productName": "Minimal Note",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "App de notas em Markdown inspirado no Obsidian — moderno, estilizado e personalizável.",
   "main": "main.js",
   "author": {
@@ -19,7 +19,7 @@
     "android:www": "node build/make-www.js",
     "android:assets": "electron build/make-android-assets.js",
     "android:sync": "npm run android:www && cap sync android",
-    "android:apk": "npm run android:sync && cd android && gradlew assembleDebug"
+    "android:apk": "npm run android:sync && cd android && gradlew assembleRelease"
   },
   "license": "MIT",
   "dependencies": {

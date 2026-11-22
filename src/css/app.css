@@ -313,7 +313,7 @@ mark.hl, .sr-hit mark { background: color-mix(in srgb, var(--accent) 30%, transp
 
 .dialog { width: min(420px, 100%); padding: 20px; margin-top: 8vh; }
 .dialog h3 { margin: 0 0 6px; font-size: 16px; }
-.dialog p { margin: 0 0 14px; color: var(--text-muted); line-height: 1.5; font-size: 13.5px; }
+.dialog p { margin: 0 0 14px; color: var(--text-muted); line-height: 1.5; font-size: 13.5px; white-space: pre-line; }
 .dialog p:empty { display: none; }
 .dialog input { width: 100%; height: 38px; padding: 0 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-3); outline: none; margin-bottom: 16px; }
 .dialog input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-softer); }
@@ -624,3 +624,46 @@ mark.hl, .sr-hit mark { background: color-mix(in srgb, var(--accent) 30%, transp
   .pl-item { min-height: 44px; }
   .ctx-menu button { min-height: 40px; }
 }
+
+/* ===== Barra de formatação (toque) ===== */
+.mtoolbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: stretch; height: 46px;
+  background: color-mix(in srgb, var(--bg-2) 97%, transparent); border-top: 1px solid var(--border); box-shadow: 0 -4px 16px rgb(0 0 0 / .12); }
+.mtoolbar[hidden] { display: none; }
+.mt-scroll { flex: 1; display: flex; align-items: center; gap: 2px; overflow-x: auto; padding: 0 6px; scrollbar-width: none; }
+.mt-scroll::-webkit-scrollbar { display: none; }
+.mt-btn { flex-shrink: 0; min-width: 40px; height: 38px; padding: 0 8px; border-radius: var(--radius-sm); color: var(--text); font-size: 15px; font-family: var(--font-ui); display: inline-flex; align-items: center; justify-content: center; }
+.mt-btn:active { background: var(--accent-soft); color: var(--accent); }
+.mt-bold { font-weight: 800; } .mt-italic { font-style: italic; font-family: var(--font-editor); } .mt-strike { text-decoration: line-through; }
+.mt-heading { font-weight: 800; color: var(--accent); }
+.mt-wikilink, .mt-code { font-family: var(--font-mono); font-size: 13px; }
+.mt-sep { flex-shrink: 0; width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+.mt-done { border-left: 1px solid var(--border); border-radius: 0; min-width: 48px; font-size: 20px; color: var(--text-muted); }
+.mt-done svg { transform: rotate(90deg); }
+:root.mt-open .pane .doc { padding-bottom: 50vh; }
+:root.mt-open .toasts { bottom: 62px; }
+@media (max-width: 480px) {
+  /* digitando: a barra de navegação de baixo some para dar espaço ao texto */
+  :root.typing .ribbon { display: none !important; }
+  :root.typing .body { padding-bottom: 0; }
+  :root.mt-open .body { padding-bottom: 46px; }
+}
+
+/* ===== Seletor de pasta (Android) ===== */
+.fp-overlay { z-index: 55; padding-top: 6vh; }
+.fp { width: min(520px, 100%); max-height: 84vh; display: flex; flex-direction: column; overflow: hidden; }
+.fp-head { padding: 16px 18px 10px; border-bottom: 1px solid var(--border); }
+.fp-head h3 { margin: 0 0 8px; font-size: 16px; }
+.fp-path { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; font-size: 13px; color: var(--text-muted); }
+.fp-path button { padding: 3px 6px; border-radius: 6px; color: var(--text-muted); }
+.fp-path button:last-of-type { color: var(--accent); font-weight: 600; }
+.fp-path span { opacity: .5; }
+.fp-list { flex: 1; overflow: auto; padding: 6px; min-height: 120px; }
+.fp-item { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: var(--radius-sm); text-align: left; color: var(--text); }
+.fp-item:active, .fp-item:hover { background: var(--hover); }
+.fp-item .fp-ic { color: var(--accent); display: inline-flex; width: 20px; justify-content: center; }
+.fp-item.up { color: var(--text-muted); }
+.fp-empty { padding: 18px 12px; color: var(--text-faint); font-size: 13px; }
+.fp-info { padding: 8px 18px; font-size: 12.5px; color: var(--text-faint); border-top: 1px solid var(--border); }
+.fp-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 16px; }
+.fp-gap { flex: 1; }
+@media (max-width: 480px) { .fp-actions .btn { flex: 1 1 40%; justify-content: center; } .fp-gap { display: none; } }
