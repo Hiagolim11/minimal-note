@@ -9,7 +9,7 @@ App de notas em Markdown, local e personalizável, inspirado no Obsidian — fei
 - **Arquivos `.md` comuns** numa pasta (o *cofre*), sem banco de dados nem nuvem
 - **Links `[[wiki]]`** com autocompletar, backlinks e renomeação que atualiza os links
 - **Grafo** interativo das notas, tags e links não criados
-- **Editor, leitura e modo dividido**, com listas inteligentes, atalhos de formatação e colagem de imagens
+- **Editor, leitura e modo dividido**, com listas inteligentes, atalhos de formatação, colagem de imagens e localizar/substituir na nota
 - **Callouts** (`> [!tip]`), tarefas clicáveis, tabelas, destaques `==texto==`, frontmatter YAML
 - **Busca** em todo o cofre, painel de tags, sumário, nota diária e paleta de comandos (`Ctrl+P`)
 - **11 temas**, cor de destaque, cores do tema editáveis, fontes, tamanhos, efeitos de vidro e fundo animado
@@ -46,7 +46,7 @@ O `.deb` é montado por `build/make-deb.js` a partir de `dist/linux-unpacked`, e
 Instalar no Linux (Debian/Ubuntu):
 
 ```bash
-sudo apt install ./dist/minimal-note_1.5.0_amd64.deb
+sudo apt install ./dist/minimal-note_1.6.0_amd64.deb
 ```
 
 
@@ -89,6 +89,7 @@ Sem esse arquivo o APK de release sai sem assinatura (use `gradlew assembleDebug
 | Nova nota | `Ctrl+N` |
 | Paleta / abrir nota | `Ctrl+P` |
 | Comandos | `Ctrl+Shift+P` |
+| Localizar / substituir na nota | `Ctrl+F` / `Ctrl+H` |
 | Edição ↔ leitura | `Ctrl+E` |
 | Modo dividido | `Ctrl+\` |
 | Grafo | `Ctrl+G` |

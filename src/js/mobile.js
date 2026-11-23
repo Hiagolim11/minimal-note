@@ -12,7 +12,7 @@
   const TOOLS = [
     ['heading', 'H', 'Título (1 → 2 → 3 → texto)'], ['bold', 'B', 'Negrito'], ['italic', 'I', 'Itálico'],
     ['list', '•', 'Lista'], ['task', '☑', 'Tarefa'], ['wikilink', '[[ ]]', 'Link para nota'], ['sep'],
-    ['undo', '↶', 'Desfazer'], ['redo', '↷', 'Refazer'], ['sep'],
+    ['undo', '↶', 'Desfazer'], ['redo', '↷', 'Refazer'], ['find', '⌕', 'Localizar e substituir'], ['sep'],
     ['ordered', '1.', 'Lista numerada'], ['quote', '❝', 'Citação'], ['link', '🔗', 'Link'], ['code', '</>', 'Código'],
     ['tag', '#', 'Tag'], ['strike', 'S', 'Riscado'], ['mark', '◐', 'Destaque'], ['sep'],
     ['outdent', '⇤', 'Diminuir recuo'], ['indent', '⇥', 'Aumentar recuo'],
@@ -58,6 +58,7 @@
   }
 
   const ACTIONS = {
+    find: () => window.__lumenFind?.open(),
     undo: () => document.execCommand('undo'),
     redo: () => document.execCommand('redo'),
     heading: cycleHeading,

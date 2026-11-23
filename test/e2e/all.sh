@@ -34,4 +34,7 @@ check rename-links "$out" 'daqui é a B' '[[C/Nova]] e [[B/Nota]]' '[[Nova]] e [
 grep -q '\[\[Nova\]\] daqui é a B' <<<"$out" && { echo "✖ rename-links: link da outra nota homônima foi reescrito"; fail=1; }
 out=$(bash test/e2e/run.sh test/e2e/editor-overlay.js)
 check editor-overlay "$out" 'incremental = completo' 'desalinhamento máximo=0.00px'
+out=$(bash test/e2e/run.sh test/e2e/find.js)
+check find "$out" '\"count\":\"1/6\",\"marks\":6' '\"sel\":\"Gato\"' 'volta ao fim: 6/6' 'maiúsculas: 5/5' '{\"left\":0,\"caes\":6,\"count\":\"Nenhuma\",\"saved\":true}' 'desfazer: 5' '{\"closed\":true,\"focus\":\"editor\",\"marks\":0}' '{\"mode\":\"edit\",\"open\":true}'
+grep -qE 'desalinhamento das marcas=0\.[0-4]' <<<"$out" || { echo "✖ find: marcas desalinhadas do texto"; fail=1; }
 exit $fail

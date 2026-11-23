@@ -176,6 +176,7 @@ const SHORTCUTS = `| Ação | Atalho |
 | Nova nota | Ctrl + N |
 | Paleta de comandos | Ctrl + P |
 | Busca no cofre | Ctrl + Shift + F |
+| Localizar / substituir na nota | Ctrl + F / Ctrl + H |
 | Alternar edição / leitura | Ctrl + E |
 | Modo dividido | Ctrl + \\\\ |
 | Grafo | Ctrl + G |

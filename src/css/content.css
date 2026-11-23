@@ -101,3 +101,13 @@
 /* impressão */
 #print-root .markdown { color: #111; --text: #111; --text-muted: #444; --border: #ddd; --bg-3: #f4f4f4; --code-bg: #f6f6f6; }
 #print-root h1.print-title { font-family: var(--font-editor); font-size: 30px; margin: 0 0 16px; }
+
+/* localizar na nota: mesma caixa do realce, texto invisível, só as marcas aparecem */
+.editor-find {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0; color: transparent;
+  font-family: var(--font-editor); font-size: var(--font-size); line-height: var(--line-height);
+  white-space: pre-wrap; overflow-wrap: break-word; tab-size: 4; overflow: hidden;
+}
+.editor-find:empty { display: none; }
+.editor-find mark { color: transparent; background: color-mix(in srgb, var(--highlight, #facc15) 34%, transparent); border-radius: 2px; }
+.editor-find mark.cur { background: color-mix(in srgb, var(--accent) 45%, transparent); box-shadow: 0 0 0 1.5px var(--accent); }

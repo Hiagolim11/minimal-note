@@ -15,7 +15,7 @@ class MarkdownEditor {
   }
 
   get value() { return this.ta.value; }
-  set value(v) { this.ta.value = v; this.lastLen = v.length; this.autosize(); this.highlight(); }
+  set value(v) { this.ta.value = v; this.lastLen = v.length; this.autosize(); this.highlight(); this.ta.dispatchEvent(new Event('lumen-load')); }
 
   // ---- realce de sintaxe (só cores: não altera a largura do texto) ----
   highlight() {

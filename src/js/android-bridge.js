@@ -108,7 +108,7 @@
 
 ## No celular
 - Deslize da borda esquerda para abrir a lista de arquivos
-- A barra acima do teclado tem títulos, listas, tarefas, links, recuo e desfazer
+- A barra acima do teclado tem títulos, listas, tarefas, links, recuo, desfazer e ⌕ para localizar e substituir na nota
 - Em **Configurações → Cofre** você escolhe a pasta das notas e faz backup em .zip
 
 > [!note] Callouts

@@ -52,6 +52,8 @@ const COMMANDS = [
   { id: 'daily', name: 'Abrir nota diária', icon: 'calendar', key: 'Ctrl Shift D', run: dailyNote },
   { id: 'graph', name: 'Abrir grafo', icon: 'graph', key: 'Ctrl G', run: () => addTab({ kind: 'graph' }) },
   { id: 'search', name: 'Buscar no cofre', icon: 'search', key: 'Ctrl Shift F', run: () => { showLeftPanel('search'); $('#search-input').focus(); } },
+  { id: 'find', name: 'Localizar na nota', icon: 'search', key: 'Ctrl F', run: () => window.__lumenFind?.open() },
+  { id: 'replace', name: 'Substituir na nota', icon: 'search', key: 'Ctrl H', run: () => window.__lumenFind?.open(true) },
   { id: 'toggle-mode', name: 'Alternar edição / leitura', icon: 'eye', key: 'Ctrl E', run: () => toggleMode() },
   { id: 'split', name: 'Modo dividido', icon: 'columns', key: 'Ctrl \\', run: () => setMode(activeTab()?.mode === 'split' ? 'edit' : 'split') },
   { id: 'toggle-left', name: 'Alternar barra lateral esquerda', icon: 'panelLeft', run: () => toggleSide('left') },

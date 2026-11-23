@@ -667,3 +667,30 @@ mark.hl, .sr-hit mark { background: color-mix(in srgb, var(--accent) 30%, transp
 .fp-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 16px; }
 .fp-gap { flex: 1; }
 @media (max-width: 480px) { .fp-actions .btn { flex: 1 1 40%; justify-content: center; } .fp-gap { display: none; } }
+
+/* ===== localizar e substituir na nota ===== */
+.findbar { position: sticky; top: 0; z-index: 6; margin: 0 auto; max-width: 620px; padding: 6px 8px;
+  display: flex; flex-direction: column; gap: 6px; background: var(--bg-2); border: 1px solid var(--border); border-top: 0;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm); box-shadow: 0 6px 18px rgb(0 0 0 / .14); }
+.findbar[hidden] { display: none; }
+.fb-row { display: flex; align-items: center; gap: 4px; }
+.fb-row[hidden] { display: none; }
+.fb-gap { width: 30px; flex: none; }
+.fb-input { flex: 1; min-width: 0; height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--text); font-size: 14px; outline: none; }
+.fb-input:focus { border-color: var(--accent); }
+.findbar.fb-none #fb-find { border-color: #e5484d; }
+.fb-count { min-width: 54px; text-align: center; font-size: 12px; color: var(--text-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.findbar.fb-none .fb-count { color: #e5484d; }
+.fb-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 6px;
+  border: 0; border-radius: var(--radius-sm); background: none; color: var(--text-muted); cursor: pointer; font-size: 13px; font-weight: 600; }
+.fb-btn:hover { background: var(--accent-soft); color: var(--text); }
+.fb-btn.on { background: var(--accent-soft); color: var(--accent); }
+.fb-txt { padding: 0 10px; border: 1px solid var(--border); font-weight: 500; }
+.fb-more svg { transition: transform .15s; }
+.findbar.fb-replacing .fb-more svg { transform: rotate(90deg); }
+.fb-prev svg { transform: rotate(-90deg); }
+.fb-next svg { transform: rotate(90deg); }
+:root.touch .fb-btn { min-width: 38px; height: 38px; }
+:root.touch .fb-input { height: 38px; font-size: 16px; }
+@media (max-width: 480px) { .findbar { max-width: none; border-radius: 0; border-left: 0; border-right: 0; } .fb-count { min-width: 40px; } .fb-case { display: none; } }
