@@ -7,4 +7,8 @@
     <string name="sc_new">Nova nota</string>
     <string name="sc_daily">Nota diária</string>
     <string name="sc_search">Buscar</string>
+    <string name="sc_tasks">Tarefas</string>
+    <string name="w_daily_short">Diária</string>
+    <string name="widget_name">Minimal Note</string>
+    <string name="widget_desc">Nova nota, nota diária, tarefas e busca com um toque</string>
 </resources>

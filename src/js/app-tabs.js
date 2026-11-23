@@ -201,6 +201,7 @@ function renderPreview() {
   // evita título duplicado quando a nota já começa com "# Título"
   $('#preview-title').hidden = startsWithOwnTitle(note);
   if (!note.content.trim()) pv.innerHTML = '<p style="color:var(--text-faint)">Nota vazia — pressione Ctrl+E para editar.</p>';
+  MD.renderDiagrams(pv);
 }
 const renderPreviewSoon = debounce(renderPreview, 120);
 

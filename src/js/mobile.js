@@ -15,7 +15,7 @@
     ['undo', '↶', 'Desfazer'], ['redo', '↷', 'Refazer'], ['find', '⌕', 'Localizar e substituir'], ['review', '✓', 'Revisar gramática'], ['sep'],
     ['ordered', '1.', 'Lista numerada'], ['quote', '❝', 'Citação'], ['link', '🔗', 'Link'], ['code', '</>', 'Código'],
     ['tag', '#', 'Tag'], ['strike', 'S', 'Riscado'], ['mark', '◐', 'Destaque'], ['sep'],
-    ['outdent', '⇤', 'Diminuir recuo'], ['indent', '⇥', 'Aumentar recuo'],
+    ['outdent', '⇤', 'Diminuir recuo'], ['indent', '⇥', 'Aumentar recuo'], ['sep'], ['table', '▦', 'Inserir tabela'],
   ];
   const bar = document.createElement('div');
   bar.id = 'mtoolbar';
@@ -59,6 +59,7 @@
 
   const ACTIONS = {
     find: () => window.__lumenFind?.open(),
+    table: () => window.insertTable?.(),
     review: () => window.__lumenReview?.run(),
     undo: () => document.execCommand('undo'),
     redo: () => document.execCommand('redo'),

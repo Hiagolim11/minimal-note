@@ -27,6 +27,13 @@ async function dailyNote() {
   const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const path = joinPath(S.settings.dailyFolder, ymd + '.md');
   if (S.notes.has(path)) return openNote(path);
+  const tpl = typeof Templates !== 'undefined' && Templates.dailyTemplate();
+  if (tpl) {
+    const { text, cursor } = Templates.apply(tpl.content, { title: ymd, date: d });
+    const rel = await createNote({ folder: S.settings.dailyFolder, name: ymd, content: text, focusTitle: false });
+    if (rel && cursor >= 0) setTimeout(() => { editor.ta.focus(); editor.ta.setSelectionRange(cursor, cursor); }, 120);
+    return;
+  }
   const title = d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   await createNote({ folder: S.settings.dailyFolder, name: ymd, content: `# ${title.charAt(0).toUpperCase() + title.slice(1)}\n\n## Tarefas\n- [ ] \n\n## Notas\n\n#diário\n` });
 }
@@ -211,6 +218,7 @@ function bindTree() {
         { label: 'Nova subpasta', icon: 'folderPlus', run: () => newFolder(path) },
         'sep',
         { label: 'Renomear', icon: 'edit', run: async () => { const n = await promptName('Renomear pasta', baseName(path)); if (n && cleanName(n)) renamePath(path, joinPath(dirName(path), cleanName(n)), true); } },
+        { label: 'Proteger pasta com senha', icon: 'vault', run: () => Protect.protectFolder(path) },
         ...(CAN_REVEAL ? [{ label: 'Mostrar no Explorer', icon: 'external', run: () => lumen.shell.reveal(path) }] : []),
         'sep',
         { label: 'Excluir pasta', icon: 'trash', danger: true, run: () => deletePath(path, true) },
@@ -221,6 +229,7 @@ function bindTree() {
         { label: 'Abrir em nova aba', icon: 'plus', run: () => openNote(path, { newTab: true }) },
         { label: 'Renomear', icon: 'edit', run: async () => { const n = await promptName('Renomear nota', baseName(path)); if (n && cleanName(n)) renamePath(path, joinPath(dirName(path), cleanName(n) + (path.match(/\.\w+$/)?.[0] || '.md'))); } },
         { label: 'Duplicar', icon: 'copy', run: () => duplicateNote(path) },
+        Protect.isProtected(path) ? { label: 'Remover senha', icon: 'vault', run: () => Protect.removeProtection(path) } : { label: 'Proteger com senha', icon: 'vault', run: () => Protect.protectNote(path) },
         ...(IS_ANDROID ? [{ label: 'Compartilhar', icon: 'external', run: () => shareNote(path) }] : []),
       );
       else items.push({ label: 'Copiar link de incorporação', icon: 'link', run: () => { navigator.clipboard.writeText(`![[${path}]]`); toast('Link copiado'); } });
@@ -269,37 +278,24 @@ function bindTree() {
 function runSearch() {
   const raw = $('#search-input').value.trim();
   const out = $('#search-results'), meta = $('#search-meta');
-  if (!raw) { out.innerHTML = ''; meta.textContent = 'Digite para buscar em títulos e conteúdo. Use #tag para filtrar.'; return; }
-  const tagQ = /^(#|tag:)(\S+)$/.exec(raw);
-  const results = [];
-  if (tagQ) {
-    const tq = tagQ[2].replace(/^#/, '').toLowerCase();
-    for (const n of S.notes.values()) if (n.tags.some((t) => t.toLowerCase() === tq || t.toLowerCase().startsWith(tq + '/'))) results.push({ n, hits: [] });
-  } else {
-    const q = raw.toLowerCase();
-    const re = new RegExp(escRe(raw), 'gi');
-    for (const n of S.notes.values()) {
-      const inName = n.name.toLowerCase().includes(q);
-      const lc = n.content.toLowerCase();
-      const hits = [];
-      let i = lc.indexOf(q);
-      while (i >= 0 && hits.length < 4) {
-        const s = Math.max(0, i - 40), e = Math.min(n.content.length, i + q.length + 70);
-        const snip = (s > 0 ? '…' : '') + n.content.slice(s, e).replace(/\n/g, ' ') + (e < n.content.length ? '…' : '');
-        hits.push({ html: esc(snip).replace(new RegExp(escRe(esc(raw)), 'gi'), (m) => `<mark>${m}</mark>`), pos: i });
-        i = lc.indexOf(q, i + q.length);
-      }
-      const count = (n.content.match(re) || []).length;
-      if (inName || hits.length) results.push({ n, hits, count, score: (inName ? 100 : 0) + count });
-    }
-    results.sort((a, b) => b.score - a.score);
+  if (!raw) {
+    out.innerHTML = '';
+    meta.innerHTML = `Busca em títulos e conteúdo, aceita erros de digitação. Filtros:
+      <div class="search-chips">${[['tarefa:pendente', 'Tarefas pendentes'], ['editada:hoje', 'Editadas hoje'], ['editada:semana', 'Editadas esta semana'], ['criada:mês', 'Criadas no mês'], ['#', 'Por tag…'], ['pasta:', 'Por pasta…'], ['"', 'Frase exata…'], ['-', 'Excluir palavra…']]
+        .map(([q, l]) => `<button class="chip sm" data-q="${esc(q)}">${esc(l)}</button>`).join('')}</div>`;
+    return;
   }
-  meta.textContent = `${results.length} nota(s) encontrada(s)`;
-  out.innerHTML = results.slice(0, 80).map(({ n, hits, count }) => `
-    <div class="sr-file">
-      <div class="sr-name" data-path="${esc(n.path)}">${icon('note', 15)}<span>${esc(n.name)}</span>${count ? `<span class="count">${count}</span>` : ''}</div>
-      ${hits.map((h) => `<div class="sr-hit" data-path="${esc(n.path)}" data-pos="${h.pos}">${h.html}</div>`).join('')}
-    </div>`).join('');
+  const { results, total, query } = SmartSearch.run([...S.notes.values()], raw);
+  const filters = [...query.tags.map((t) => '#' + t), ...query.folders.map((f) => 'pasta ' + f), query.task && (query.task === 'open' ? 'tarefas pendentes' : query.task === 'done' ? 'tarefas feitas' : 'tarefas'), query.edited && 'editada ' + query.edited, query.created && 'criada ' + query.created].filter(Boolean);
+  meta.textContent = `${total} nota(s)` + (filters.length ? ' · ' + filters.join(' · ') : '');
+  const markHtml = (text, marks) => { let o = '', last = 0; for (const [a, b] of marks) { if (a < last) continue; o += esc(text.slice(last, a)) + '<mark>' + esc(text.slice(a, b)) + '</mark>'; last = b; } return o + esc(text.slice(last)); };
+  out.innerHTML = results.slice(0, 80).map(({ note: n, marks, tasks }) => {
+    let hits = '';
+    if (tasks) hits = tasks.slice(0, 5).map((t) => { const pos = n.content.split('\n').slice(0, t.line).join('\n').length + (t.line ? 1 : 0); return `<div class="sr-hit" data-path="${esc(n.path)}" data-pos="${pos}">${esc(t.text)}</div>`; }).join('');
+    else hits = SmartSearch.snippets(n.content, marks).map((h) => `<div class="sr-hit" data-path="${esc(n.path)}" data-pos="${h.pos}">${markHtml(h.text, h.marks)}</div>`).join('');
+    const folder = n.folder ? `<span class="sr-folder">${esc(n.folder)}</span>` : '';
+    return `<div class="sr-file"><div class="sr-name" data-path="${esc(n.path)}">${icon('note', 15)}<span>${esc(n.name)}</span>${folder}</div>${hits}</div>`;
+  }).join('') || '<div class="rp-empty">Nada encontrado. Tente menos palavras ou outro filtro.</div>';
 }
 
 function renderTags() {
@@ -346,6 +342,7 @@ function renderRight() {
       const r = resolveLink(l, note.path);
       return `<div class="bl-item${r ? '' : ' ghost'}" data-target="${esc(l)}"><div class="bl-name">${icon(r ? 'link' : 'plus', 14)}${esc(l)}</div>${r ? '' : '<div class="bl-snip">Ainda não criada — clique para criar</div>'}</div>`;
     }).join('') : '<div class="rp-empty">Nenhum link de saída.</div>';
+    if (typeof LinkSuggest !== 'undefined') LinkSuggest.render(note);
   }
   if (p === 'info') {
     const chars = note.content.length;

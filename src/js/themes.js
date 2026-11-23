@@ -119,6 +119,11 @@ const DEFAULT_SETTINGS = {
   newNoteFolder: '',
   attachmentsFolder: 'Anexos',
   dailyFolder: 'Diário',
+  lockMinutes: 10,           // notas protegidas voltam a bloquear após N min sem uso (0 = nunca)
+  taskReminders: true,
+  quickCapture: true,        // Ctrl+Alt+N em qualquer lugar abre a captura rápida (computador)       // aviso das tarefas de hoje/atrasadas
+  templatesFolder: 'Modelos', // notas desta pasta viram modelos
+  dailyTemplate: 'Diário',    // modelo usado pela nota diária (se existir)
   customCss: '',
   expanded: [],
   sort: 'name',

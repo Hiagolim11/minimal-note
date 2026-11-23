@@ -24,6 +24,10 @@ function updateGraph() {
     S.graph = wantBrain ? new BrainView($('#graph-canvas'), opts) : new GraphView($('#graph-canvas'), opts);
     S.graph.filter = $('#graph-filter').value;
   } else if (wantBrain) S.graph.setMode(mode);
+  if (wantBrain) {
+    S.graph.groupBy = g.lobes === 'tag' ? 'tag' : 'folder'; S.graph.focusMode = !!g.focus;
+    $('#g-lobes').value = S.graph.groupBy; $('#g-focus').checked = !!g.focus;
+  }
   const nodes = [], edges = [], ids = new Set();
   const deg = new Map();
   for (const n of S.notes.values()) {
@@ -45,7 +49,7 @@ function updateGraph() {
   }
   for (const n of S.notes.values()) {
     if (!g.orphans && !deg.get(n.path)) continue;
-    nodes.push({ id: n.path, label: n.name, kind: 'note' });
+    nodes.push({ id: n.path, label: n.name, kind: 'note', ctime: n.ctime, tags: n.tags });
   }
   S.graph.showLabels = g.labels;
   S.graph.readColors();
@@ -57,6 +61,17 @@ function updateGraph() {
 // ---------- paleta de comandos ----------
 const COMMANDS = [
   { id: 'new-note', name: 'Nova nota', icon: 'notePlus', key: 'Ctrl N', run: () => createNote() },
+  { id: 'new-from-template', name: 'Nova nota a partir de modelo', icon: 'copy', key: 'Ctrl Shift N', run: () => Templates.newFromTemplate() },
+  { id: 'tasks', name: 'Abrir tarefas', icon: 'check', run: () => showLeftPanel('tasks') },
+  { id: 'task-date', name: 'Pôr data na tarefa', icon: 'calendar', run: () => Tasks.addDateToCurrent() },
+  ...(IS_ANDROID ? [] : [{ id: 'capture', name: 'Captura rápida', icon: 'notePlus', key: 'Ctrl Alt N', run: () => lumen.capture.open() }]),
+  { id: 'table-insert', name: 'Inserir tabela', icon: 'columns', run: () => insertTable() },
+  { id: 'table-format', name: 'Alinhar tabela', icon: 'columns', run: () => formatTable() },
+  { id: 'math-insert', name: 'Inserir fórmula ($$ $$)', icon: 'code', run: () => insertSnippet('\n$$\nE = mc^2\n$$\n', 4, 12) },
+  { id: 'diagram-insert', name: 'Inserir diagrama (Mermaid)', icon: 'graph', run: () => insertSnippet('\n```mermaid\nflowchart LR\n  A[Ideia] --> B[Rascunho] --> C[Pronto]\n```\n', 25, 65) },
+  { id: 'protect', name: 'Proteger nota com senha', icon: 'vault', run: () => Protect.protectNote() },
+  { id: 'unprotect', name: 'Remover senha da nota', icon: 'vault', run: () => Protect.removeProtection() },
+  { id: 'lock-all', name: 'Bloquear notas protegidas agora', icon: 'vault', run: async () => { const n = await Protect.lockAll(); toast(n ? `${n} nota(s) bloqueada(s)` : 'Nenhuma nota protegida aberta'); } },
   { id: 'new-folder', name: 'Nova pasta', icon: 'folderPlus', run: () => newFolder('') },
   { id: 'daily', name: 'Abrir nota diária', icon: 'calendar', key: 'Ctrl Shift D', run: dailyNote },
   { id: 'graph', name: 'Abrir grafo', icon: 'graph', key: 'Ctrl G', run: () => addTab({ kind: 'graph' }) },
@@ -92,23 +107,35 @@ const COMMANDS = [
   ...Object.entries(FX_PRESETS).map(([id, p]) => ({ id: 'fx-' + id, name: `Efeitos: ${p.name}`, icon: 'sparkles', run: () => { applyFxPreset(id); toast(`Efeitos: ${p.name}`); } })),
   { id: 'theme-new', name: 'Criar novo tema', icon: 'wand', run: () => { tcNew(); openSettings('creator'); } },
 ];
+// insere um trecho no cursor e seleciona [selA, selB) dentro dele
+function insertSnippet(text, selA, selB) {
+  if (!activeNote()) { toast('Abra uma nota primeiro'); return; }
+  if (activeTab().mode === 'preview') setMode('edit');
+  const p = editor.ta.selectionStart;
+  editor.replace(p, editor.ta.selectionEnd, text, p + selA, p + selB);
+}
 const themeCommands = () => Object.entries(allThemes(S.settings)).map(([k, t]) => ({ id: 'theme-' + k, name: `Tema: ${t.name}`, icon: 'palette', run: () => { S.settings.accent = null; setSetting('theme', k); } }));
 
-const PAL = { items: [], sel: 0 };
-function openPalette(prefix = '') {
+const PAL = { items: [], sel: 0, source: null };
+// source (opcional): (consulta) => [{ html, run }] — usado por outros recursos (ex.: modelos)
+function openPalette(prefix = '', source = null, placeholder = '') {
   $('#palette').hidden = false;
   const inp = $('#palette-input');
+  PAL.source = source;
+  inp.placeholder = placeholder || inp.dataset.placeholder || (inp.dataset.placeholder = inp.placeholder);
   inp.value = prefix;
   renderPalette();
   setTimeout(() => inp.focus(), 10);
 }
-function closePalette() { $('#palette').hidden = true; }
+function closePalette() { $('#palette').hidden = true; PAL.source = null; }
 function renderPalette() {
   const raw = $('#palette-input').value;
   const list = $('#palette-list');
   let html = '';
   PAL.items = []; PAL.sel = 0;
-  if (raw.startsWith('>')) {
+  if (PAL.source) {
+    PAL.items = PAL.source(raw.trim());
+  } else if (raw.startsWith('>')) {
     const q = raw.slice(1).trim();
     const scored = [...COMMANDS, ...themeCommands()].map((c) => ({ c, f: fuzzy(q, c.name) })).filter((x) => x.f).sort((a, b) => b.f.score - a.f.score);
     PAL.items = scored.map(({ c, f }) => ({ run: c.run, html: `<span class="pl-icon">${icon(c.icon, 17)}</span><span class="pl-main">${hlIdx(c.name, f.idx)}</span>${c.key ? `<kbd>${c.key}</kbd>` : ''}` }));
@@ -147,7 +174,7 @@ function bindPalette() {
     else if (e.key === 'ArrowUp') { e.preventDefault(); movePalette(-1); }
     else if (e.key === 'Enter') {
       e.preventDefault();
-      if (e.shiftKey && !inp.value.startsWith('>')) { const q = inp.value.trim(); if (q) { closePalette(); openOrCreateByName(cleanName(q)); } return; }
+      if (e.shiftKey && !inp.value.startsWith('>') && !PAL.source) { const q = inp.value.trim(); if (q) { closePalette(); openOrCreateByName(cleanName(q)); } return; }
       runPalette(PAL.sel, e);
     } else if (e.key === 'Escape') { e.preventDefault(); closePalette(); }
   });

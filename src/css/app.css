@@ -749,3 +749,71 @@ mark.hl, .sr-hit mark { background: color-mix(in srgb, var(--accent) 30%, transp
 .graph-view.brain .graph-toolbar .search-box input { color: #e6ebff; }
 .graph-view.brain .graph-style button.active { background: rgba(90,120,255,.3); color: #fff; box-shadow: none; }
 .graph-view.brain .graph-canvas canvas { touch-action: none; }
+
+/* busca inteligente */
+.search-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip.sm { height: 26px; padding: 0 9px; font-size: 12px; border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--text-muted); cursor: pointer; }
+.chip.sm:hover { color: var(--text); border-color: var(--accent); }
+.sr-folder { margin-left: auto; font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+
+/* busca inteligente */
+.search-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip.sm { height: 26px; padding: 0 9px; font-size: 12px; border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--text-muted); cursor: pointer; }
+.chip.sm:hover { color: var(--text); border-color: var(--accent); }
+.sr-folder { margin-left: auto; font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+
+/* tarefas */
+.rb-badge { position: absolute; top: 3px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #e5484d; color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+.rb-badge[hidden] { display: none; }
+.task-filters { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 10px 8px; }
+.task-filters button { height: 26px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; color: var(--text-muted); background: none; cursor: pointer; }
+.task-filters button.active { color: var(--accent); border-color: var(--accent); background: var(--accent-softer); }
+.task-filters .n { opacity: .75; }
+.task-list { overflow: auto; flex: 1; padding: 0 8px 12px; }
+.task-group { margin-bottom: 10px; }
+.task-note { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-muted); padding: 6px 4px 4px; cursor: pointer; }
+.task-note:hover { color: var(--text); }
+.task-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 6px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13.5px; line-height: 1.35; }
+.task-item:hover { background: var(--hover); }
+.task-item input { margin-top: 2px; accent-color: var(--accent); flex: none; }
+.task-item .task-txt { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.task-item.done .task-txt { text-decoration: line-through; color: var(--text-faint); }
+.task-item .due { flex: none; font-size: 11px; padding: 1px 6px; border-radius: 999px; color: var(--text-muted); background: var(--bg-3); white-space: nowrap; }
+.task-item .due.overdue { color: #fff; background: #e5484d; }
+.task-item .due.today { color: #fff; background: var(--accent); }
+
+/* cérebro: ferramentas (lobos, foco, linha do tempo) */
+.graph-view:not(.brain) .brain-only { display: none; }
+.graph-brain-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.graph-brain-tools select { height: 30px; border-radius: var(--radius-sm); padding: 0 8px; font-size: 12.5px; background: rgba(10,16,40,.72); color: #d8e0ff; border: 1px solid rgba(120,150,255,.25); }
+.g-timeline { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px 0 2px; border-radius: var(--radius-sm); background: rgba(10,16,40,.72); border: 1px solid rgba(120,150,255,.25); color: #d8e0ff; font-size: 12px; }
+.g-timeline .icon-btn { background: none !important; border: 0 !important; color: #d8e0ff; font-size: 11px; width: 26px; }
+.g-timeline input[type=range] { width: 120px; accent-color: #7f9bff; }
+#g-time-label { min-width: 62px; font-variant-numeric: tabular-nums; }
+
+/* sugestões de links */
+#link-suggest .rp-title { margin-top: 16px; }
+.ls-item { padding: 7px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; }
+.ls-item.ls-sim { display: flex; align-items: center; gap: 8px; }
+.ls-item.ls-sim .bl-name { flex: 1; min-width: 0; }
+.ls-snip { font-size: 12.5px; color: var(--text-muted); line-height: 1.4; overflow-wrap: anywhere; margin: 2px 0 6px; }
+.ls-snip mark { background: var(--accent-soft); color: var(--text); border-radius: 2px; }
+.ls-btn { border: 0; background: var(--accent-soft); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: var(--radius-sm); cursor: pointer; }
+.ls-btn:hover { background: var(--accent); color: #fff; }
+.ls-tags { margin-left: 6px; font-size: 11px; color: var(--text-faint); font-weight: 400; }
+.bl-name[data-open] { cursor: pointer; }
+
+/* notas protegidas */
+.note-view.locked .panes { visibility: hidden; }
+#lock-view { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; }
+#lock-view[hidden] { display: none; }
+.note-view { position: relative; }
+.lock-card { width: min(380px, 100%); text-align: center; padding: 28px 24px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-2); box-shadow: 0 12px 40px rgb(0 0 0 / .25); }
+.lock-icon { width: 60px; height: 60px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center; color: var(--accent); background: var(--accent-soft); }
+.lock-card h2 { margin: 4px 0 6px; font-size: 19px; }
+.lock-sub { margin: 0 0 16px; font-size: 13px; color: var(--text-muted); line-height: 1.45; }
+.lock-card input { width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font-size: 15px; outline: none; }
+.lock-card input:focus { border-color: var(--accent); }
+.lock-err { min-height: 18px; margin: 8px 0; font-size: 13px; color: #e5484d; }
+.lock-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.ls-item .bl-name { display: flex; align-items: center; gap: 6px; min-width: 0; }

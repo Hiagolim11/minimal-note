@@ -35,19 +35,21 @@ function toast(msg, type = 'info', ms = 2600) {
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 220); }, ms);
 }
 
-function dialog({ title, msg = '', input = null, ok = 'OK', cancel = 'Cancelar', danger = false }) {
+function dialog({ title, msg = '', input = null, ok = 'OK', cancel = 'Cancelar', danger = false, password = false }) {
   return new Promise((resolve) => {
     const ov = $('#dialog'), inp = $('#dialog-input'), okBtn = $('#dialog-ok');
     $('#dialog-title').textContent = title;
     $('#dialog-msg').textContent = msg;
     inp.hidden = input === null;
+    inp.type = password ? 'password' : 'text';
+    inp.autocomplete = password ? 'new-password' : 'off';
     inp.value = input ?? '';
     okBtn.textContent = ok;
     $('#dialog-cancel').textContent = cancel;
     okBtn.classList.toggle('danger', danger);
     ov.hidden = false;
     setTimeout(() => { if (input !== null) { inp.focus(); inp.select(); } else okBtn.focus(); }, 30);
-    const done = (val) => { ov.hidden = true; cleanup(); resolve(val); };
+    const done = (val) => { ov.hidden = true; inp.type = 'text'; inp.value = ''; cleanup(); resolve(val); };
     const onOk = () => done(input === null ? true : inp.value);
     const onCancel = () => done(input === null ? false : null);
     const onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); onOk(); } if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancel(); } };

@@ -43,6 +43,7 @@ function showLeftPanel(p, silent) {
   // só foca a busca quando o usuário abre o painel (não a cada atualização do layout)
   if (p === 'search') { runSearch(); if (!silent) setTimeout(() => $('#search-input').focus(), 20); }
   if (p === 'tags') renderTags();
+  if (p === 'tasks') Tasks.render();
 }
 function toggleMode() {
   const t = activeTab(); if (t?.kind !== 'note') return;
@@ -203,11 +204,21 @@ function bindUI() {
       const t = activeTab();
       if (t.mode === 'preview') setMode('edit');
       const pos = Number(el.dataset.pos);
-      const q = $('#search-input').value.trim();
-      editor.ta.focus(); editor.ta.setSelectionRange(pos, pos + q.length);
+      const len = (/^[\p{L}\p{N}]+/u.exec(editor.ta.value.slice(pos)) || [''])[0].length;
+      editor.ta.focus(); editor.ta.setSelectionRange(pos, pos + len);
       editor.scrollToLine(editor.ta.value.slice(0, pos).split('\n').length - 1);
-      editor.ta.setSelectionRange(pos, pos + q.length);
+      editor.ta.setSelectionRange(pos, pos + len);
     }, 80);
+  });
+  // atalhos de filtro da busca
+  $('#search-meta').addEventListener('click', (e) => {
+    const c = e.target.closest('[data-q]'); if (!c) return;
+    const inp = $('#search-input'), q = c.dataset.q;
+    inp.value = (inp.value.trim() ? inp.value.trim() + ' ' : '') + q;
+    if (q === '"') inp.value += '"';
+    inp.focus();
+    if (q === '"') inp.setSelectionRange(inp.value.length - 1, inp.value.length - 1);
+    if (!/[:#"-]$/.test(q)) runSearch();
   });
   $('#tag-list').addEventListener('click', (e) => { const t = e.target.closest('.tag-chip'); if (t) searchTag(t.dataset.tag); });
   $('#recent-list').addEventListener('click', (e) => { const r = e.target.closest('[data-path]'); if (r) openNote(r.dataset.path); });
@@ -216,6 +227,19 @@ function bindUI() {
   ['tags', 'orphans', 'ghosts', 'labels'].forEach((k) => $('#g-' + k).addEventListener('change', (e) => { S.settings.graph = { ...S.settings.graph, [k]: e.target.checked }; saveSettings(); updateGraph(); }));
   $('#graph-filter').addEventListener('input', (e) => { if (S.graph) { S.graph.filter = e.target.value; S.graph.kick?.(); } });
   $('#g-center').addEventListener('click', () => S.graph?.center());
+  // cérebro: lobos por pasta/tag, foco e linha do tempo
+  $('#g-lobes').addEventListener('change', (e) => { S.settings.graph = { ...S.settings.graph, lobes: e.target.value }; saveSettings(); S.graph?.setGroupBy?.(e.target.value); });
+  $('#g-focus').addEventListener('change', (e) => { S.settings.graph = { ...S.settings.graph, focus: e.target.checked }; saveSettings(); S.graph?.setFocus?.(e.target.checked); });
+  const timeLabel = (t) => { $('#g-time-label').textContent = t == null ? 'hoje' : new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' }); };
+  $('#g-time').addEventListener('input', (e) => {
+    const g = S.graph; if (!g?.timeRange) return; const [a, b] = g.timeRange, k = Number(e.target.value) / 1000;
+    const t = k >= 1 ? null : a + (b - a) * k; g.playing = false; g.setTime(t); timeLabel(t); $('#g-play').textContent = '▶';
+  });
+  $('#g-play').addEventListener('click', () => {
+    const g = S.graph; if (!g?.play) return;
+    const on = g.play((t, k) => { $('#g-time').value = Math.round(k * 1000); timeLabel(t); if (k >= 1) $('#g-play').textContent = '▶'; });
+    $('#g-play').textContent = on ? '❚❚' : '▶';
+  });
   $('#g-style').addEventListener('click', (e) => {
     const b = e.target.closest('[data-style]'); if (!b) return;
     S.settings.graph = { ...S.settings.graph, style: b.dataset.style }; saveSettings(); updateGraph();
@@ -325,4 +349,5 @@ async function init() {
   $('#app').style.opacity = 1;
 }
 
-init();
+// começa só depois de todos os scripts (modelos, tarefas, notas protegidas…) estarem carregados
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

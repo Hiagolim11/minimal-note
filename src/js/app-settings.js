@@ -115,6 +115,9 @@ function renderSection() {
         ${row('Listas inteligentes', 'Enter continua listas, numeração e tarefas.', toggleCtl('smartLists'))}
         ${row('Fechar pares automaticamente', 'Parênteses, colchetes, aspas e crases.', toggleCtl('autoPair'))}
         ${IS_ANDROID ? '' : row('Carregar imagens da internet', 'Desligado, abrir uma nota não avisa nenhum site (evita rastreadores em notas recebidas).', toggleCtl('remoteImages'))}
+        ${IS_ANDROID ? '' : row('Captura rápida (Ctrl+Alt+N)', 'Em qualquer programa, abre uma janelinha para anotar; salva na nota “Caixa de entrada” ou numa nota nova.', toggleCtl('quickCapture'))}
+        ${row('Bloquear notas protegidas', 'Depois de quantos minutos sem uso as notas com senha voltam a pedir a senha (0 = só ao fechar o app).', `<input type="number" min="0" max="240" step="1" data-key="lockMinutes" value="${Number(s.lockMinutes ?? 10)}" style="width:80px">`)}
+        ${row('Lembrete de tarefas', 'Avisa uma vez por dia das tarefas para hoje e atrasadas (📅 data).', toggleCtl('taskReminders'))}
         ${row('Atraso do salvamento automático', '', rangeCtl('autosaveDelay', 200, 3000, 100, FMT.autosaveDelay))}
       </div>
       <div class="set-group"><h4>Correção ao escrever</h4>
@@ -143,6 +146,8 @@ function renderSection() {
         ${row('Pasta para novas notas', 'Vazio = raiz do cofre.', `<input type="text" data-key="newNoteFolder" value="${esc(s.newNoteFolder)}" placeholder="(raiz)">`)}
         ${row('Pasta de anexos', 'Onde imagens coladas são salvas.', `<input type="text" data-key="attachmentsFolder" value="${esc(s.attachmentsFolder)}">`)}
         ${row('Pasta das notas diárias', '', `<input type="text" data-key="dailyFolder" value="${esc(s.dailyFolder)}">`)}
+        ${row('Pasta de modelos', 'Cada nota desta pasta vira um modelo (Ctrl+Shift+N). Use {{título}}, {{data}}, {{hora}}, {{cursor}}…', `<input type="text" data-key="templatesFolder" value="${esc(s.templatesFolder)}">`)}
+        ${row('Modelo da nota diária', 'Nome do modelo usado pela nota diária (vazio = padrão do app).', `<input type="text" data-key="dailyTemplate" value="${esc(s.dailyTemplate)}">`)}
         ${row('Ordenação da árvore', '', selectCtl('sort', { name: 'Nome (A–Z)', mtime: 'Modificação recente' }))}
       </div>`;
   } else if (curSection === 'css') {
@@ -152,7 +157,7 @@ function renderSection() {
     const keys = [['Nova nota', 'Ctrl N'], ['Paleta / abrir nota', 'Ctrl P'], ['Comandos', 'Ctrl Shift P'], ['Buscar no cofre', 'Ctrl Shift F'], ['Localizar na nota', 'Ctrl F'], ['Substituir na nota', 'Ctrl H'], ['Revisar gramática', 'F7'], ['Edição ↔ leitura', 'Ctrl E'], ['Modo dividido', 'Ctrl \\'], ['Grafo', 'Ctrl G'], ['Nota diária', 'Ctrl Shift D'], ['Fechar aba', 'Ctrl W'], ['Próxima aba', 'Ctrl Tab'], ['Salvar agora', 'Ctrl S'], ['Configurações', 'Ctrl ,'], ['Modo foco', 'F11'], ['Negrito / itálico', 'Ctrl B / Ctrl I'], ['Link', 'Ctrl K'], ['Tarefa', 'Ctrl L'], ['Riscado', 'Ctrl Shift X'], ['Destaque', 'Ctrl Shift H'], ['Indentar', 'Tab / Shift Tab'], ['Fonte maior / menor', 'Ctrl + / Ctrl −']];
     c.innerHTML = `<h2>Atalhos</h2><p class="sub">Atalhos de teclado disponíveis.</p><div class="set-group">${keys.map(([a, k]) => row(a, '', `<kbd>${k}</kbd>`)).join('')}</div>`;
   } else {
-    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.8 · notas em Markdown, locais e suas.</p>
+    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.9 · notas em Markdown, locais e suas.</p>
       <p class="sub">${S.notes.size} notas · ${[...S.notes.values()].reduce((a, n) => a + n.words, 0).toLocaleString('pt-BR')} palavras no cofre</p></div>`;
   }
   bindSection();
@@ -166,12 +171,13 @@ function bindSection() {
     el.addEventListener(ev, () => {
       let v = el.type === 'checkbox' ? el.checked : el.value;
       if (el.type === 'range') v = Number(v);
-      if (['newNoteFolder', 'attachmentsFolder', 'dailyFolder'].includes(key)) v = v.split('/').map(cleanName).filter(Boolean).join('/');
+      if (['newNoteFolder', 'attachmentsFolder', 'dailyFolder', 'templatesFolder'].includes(key)) v = v.split('/').map(cleanName).filter(Boolean).join('/');
       setSetting(key, v);
       const out = c.querySelector(`[data-val="${key}"]`);
       if (out) out.textContent = (FMT[key] || ((x) => x))(v);
       if (key === 'spellcheck') window.__lumenSpell?.sync();
       if (key === 'ltServer') renderSection();
+      if (key === 'quickCapture') lumen.settings.set(S.settings); // o atalho global fica no processo principal
       if (key === 'remoteImages') lumen.settings.set(S.settings).then(renderPreview); // o bloqueio fica no processo principal
       if (key === 'sort') renderTree();
       requestAnimationFrame(() => editor.autosize());
@@ -277,6 +283,7 @@ async function handleIntent(it) {
   if (it.type === 'new') return createNote({});
   if (it.type === 'daily') return dailyNote();
   if (it.type === 'search') return showLeftPanel('search');
+  if (it.type === 'tasks') { Tasks.setFilter('today'); return showLeftPanel('tasks'); }
   if (it.type === 'error') return toast('Não foi possível abrir: ' + it.message, 'error', 5000);
   // arquivo .md/.txt enviado por "Compartilhar" (como anexo): importa com o nome dele
   if (it.type === 'share' && it.name && /\.(md|markdown|txt)$/i.test(it.name)) it = { ...it, type: 'file' };
@@ -317,6 +324,7 @@ function collectCss() {
 async function exportHtml() {
   const n = activeNote(); if (!n) return toast('Abra uma nota primeiro', 'error');
   const frag = MD.render(n.content);
+  await MD.renderDiagrams(frag);
   frag.querySelectorAll('.copy-code').forEach((b) => b.remove());
   const body = frag.innerHTML;
   const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(n.name)}</title><style>${collectCss()}</style></head><body><div class="wrap">${startsWithOwnTitle(n) ? '' : `<h1 class="note-title-static">${esc(n.name)}</h1>`}<article class="markdown">${body}</article></div></body></html>`;

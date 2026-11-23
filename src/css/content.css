@@ -124,3 +124,12 @@
 .editor-spell .sp-sp { text-decoration-color: #e5484d; }
 .editor-spell .sp-gr { text-decoration-color: #3b82f6; text-decoration-style: solid; text-decoration-thickness: 2px;
   background: color-mix(in srgb, #3b82f6 10%, transparent); border-radius: 2px; }
+
+/* fórmulas e diagramas */
+.markdown .math-block { margin: 1em 0; overflow-x: auto; overflow-y: hidden; text-align: center; }
+.markdown .math-error, .markdown .katex-error { color: #e5484d; }
+.markdown .mermaid-block { margin: 1em 0; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--bg-2) 70%, transparent); overflow-x: auto; text-align: center; }
+.markdown .mermaid-block.done .mermaid-src { display: none; }
+.markdown .mermaid-block.error .mermaid-src { display: block; text-align: left; }
+.markdown .mermaid-block svg { max-width: 100%; height: auto; }
+.markdown .mermaid-error { color: #e5484d; font-size: 13px; margin-top: 6px; text-align: left; }

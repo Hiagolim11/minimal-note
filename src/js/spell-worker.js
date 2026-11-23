@@ -6,7 +6,7 @@ let hs = null;
 const ready = new Promise((resolve, reject) => {
   try {
     importScripts('../vendor/spell/hunspell.js', '../vendor/spell/pt-BR.js', 'spell-text.js');
-  } catch (e) { reject(new Error('arquivos do corretor ausentes (rode build/make-spell.js)')); return; }
+  } catch (e) { reject(new Error('arquivos do corretor ausentes (rode build/make-vendor.js)')); return; }
   const timer = setTimeout(() => reject(new Error('o Hunspell não iniciou')), 20000);
   Module({
     onRuntimeInitialized() {

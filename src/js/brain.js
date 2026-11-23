@@ -118,10 +118,12 @@ const BrainLayout = (() => {
   const groupOfPath = (p) => (p.includes('/') ? p.slice(0, p.indexOf('/')) : '');
 
   // lobos para as pastas: as maiores primeiro, sempre no lobo com menos carga para a área dele
-  function assignLobes(nodes, edges, areas = BrainGeo.AREA2) {
+  function assignLobes(nodes, edges, areas = BrainGeo.AREA2, { groupBy = 'folder' } = {}) {
     const groupOf = new Map(), nb = new Map(nodes.map((n) => [n.id, []]));
     for (const [a, b] of edges) { nb.get(a)?.push(b); nb.get(b)?.push(a); }
-    for (const n of nodes) if (n.kind === 'note' || !n.kind) groupOf.set(n.id, groupOfPath(n.id));
+    const firstTag = (n) => { const t = (n.tags || [])[0]; return t ? '#' + t.split('/')[0] : 'Sem tag'; };
+    for (const n of nodes) if (n.kind === 'note' || !n.kind) groupOf.set(n.id, groupBy === 'tag' ? firstTag(n) : groupOfPath(n.id));
+    if (groupBy === 'tag') for (const n of nodes) if (n.kind === 'tag') groupOf.set(n.id, '#' + n.label.replace(/^#/, '').split('/')[0]);
     // tags e notas não criadas ficam com a pasta mais comum entre as notas ligadas
     for (const n of nodes) {
       if (groupOf.has(n.id)) continue;
@@ -267,6 +269,30 @@ class BrainView {
     x.fillStyle = gr; x.fillRect(0, 0, s, s); return c;
   }
 
+  setGroupBy(g) { if (g === this.groupBy) return; this.groupBy = g; this.prev = { '2d': new Map(), '3d': new Map() }; this.layout(); this.kick(); }
+  setFocus(on) { this.focusMode = !!on; this.kick(); }
+  setTime(t) { this.timeCut = t; this.kick(); }
+  // linha do tempo: o cérebro cresce do primeiro dia até hoje em ~8 s
+  play(onTick) {
+    if (this.playing) { this.playing = false; return false; }
+    const [a, b] = this.timeRange; if (!(b > a)) return false;
+    this.playing = true; const t0 = performance.now(), dur = 8000; this.playAt = [t0, dur];
+    const step = () => { if (!this.playing) return; const k = Math.min(1, (performance.now() - t0) / dur); this.setTime(a + (b - a) * k); onTick?.(this.timeCut, k); if (k < 1) setTimeout(step, 33); else { this.playing = false; this.setTime(null); onTick?.(null, 1); } };
+    setTimeout(step, 33); return true; // pelo relógio: funciona mesmo com a janela em segundo plano
+  }
+  // corte de tempo atual (durante o ▶ vem do relógio, mesmo que os timers atrasem)
+  cut() {
+    if (!this.playing) return this.timeCut;
+    const [a, b] = this.timeRange, k = Math.min(1, (performance.now() - this.playAt[0]) / this.playAt[1]);
+    return k >= 1 ? null : a + (b - a) * k;
+  }
+  // visível com os filtros de tempo e de foco
+  visible(n) {
+    const cut = this.cut(); if (cut != null && (n.ctime || 0) > cut) return false;
+    if (this.focusMode && this.waveFrom && this.hops) { const h = this.hops.get(n); return h != null && h <= 2; }
+    return true;
+  }
+
   setMode(mode) { if (mode === this.mode) return; this.mode = mode; this.layout(); this.still = null; this.points = null; this.kick(); }
 
   setData({ nodes, edges }) {
@@ -277,6 +303,8 @@ class BrainView {
     this.edges.forEach((e) => { e.s.deg++; e.t.deg++; });
     this.neighbors = new Map(this.nodes.map((n) => [n, new Set()]));
     this.edges.forEach((e) => { this.neighbors.get(e.s).add(e.t); this.neighbors.get(e.t).add(e.s); });
+    for (const n of this.nodes) if (n.ctime == null) { let c = Infinity; for (const m of this.neighbors.get(n)) if (m.ctime != null && m.ctime < c) c = m.ctime; n.ctime = c === Infinity ? 0 : c; }
+    this.timeRange = this.nodes.length ? [Math.min(...this.nodes.map((n) => n.ctime || 0)), Math.max(...this.nodes.map((n) => n.ctime || 0))] : [0, 0];
     this.layout();
     this.waveFrom = null; this.pulses = []; this.hover = null; this.hops = null;
     this.start();
@@ -284,7 +312,7 @@ class BrainView {
 
   layout() {
     const dims = this.mode === '3d' ? 3 : 2, areas = dims === 3 ? BrainGeo.AREA3 : BrainGeo.AREA2;
-    const { lobe, groups, load } = BrainLayout.assignLobes(this.nodes, this.rawEdges || [], areas);
+    const { lobe, groups, load } = BrainLayout.assignLobes(this.nodes, this.rawEdges || [], areas, { groupBy: this.groupBy || 'folder' });
     this.groups = groups;
     const spacing = BrainLayout.spacingFor(load, areas, dims);
     const pos = BrainLayout.place(this.nodes, this.rawEdges || [], lobe, { prev: this.prev[this.mode], dims, spacing, sample: dims === 3 ? BrainLayout.sampler3() : BrainLayout.sampler2(0.012) });
@@ -435,6 +463,7 @@ class BrainView {
     // nota aberta: onda de luz pelas notas ligadas
     const activeId = this.getActive?.(), active = activeId ? this.byId.get(activeId) : null;
     if (active && (active !== this.waveFrom || (!calm && now - this.waveT > 5000))) { this.waveFrom = active; this.wave(active); }
+    if (!active) this.waveFrom = null;
     if (!active) this.hops = null;
     const lit = (n) => { if (calm || !this.hops?.has(n)) return 0; const s = (now - this.waveT) / 1000 - this.hops.get(n) * 0.42; return s > 0 && s < 1.5 ? 1 - s / 1.5 : 0; };
     ctx.globalCompositeOperation = 'lighter';
@@ -481,7 +510,10 @@ class BrainView {
     const dens = Math.min(1, Math.sqrt(180 / Math.max(1, this.edges.length))), ndens = Math.min(1, Math.sqrt(160 / Math.max(1, this.nodes.length)));
     ctx.lineWidth = 0.8; ctx.strokeStyle = `rgba(150,210,255,${(0.16 * dens).toFixed(3)})`; ctx.beginPath();
     const hot = [];
+    const vis = new Set(this.nodes.filter((n) => this.visible(n)));
+    for (const n of this.nodes) { if (vis.has(n)) { if (!n.shownAt) n.shownAt = now; } else n.shownAt = 0; }
     for (const e of this.edges) {
+      if (!vis.has(e.s) || !vis.has(e.t)) continue;
       const a = scr.get(e.s), b = scr.get(e.t);
       const on = (focus && (e.s === focus || e.t === focus)) || Math.max(lit(e.s), lit(e.t)) > 0.05;
       if (on) { hot.push(e); continue; }
@@ -495,7 +527,7 @@ class BrainView {
       ctx.strokeStyle = `rgba(170,220,255,${0.22 + 0.6 * k3})`; ctx.lineWidth = 0.8 + k3; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
     }
     // pulsos correndo pelos links
-    if (!calm && this.edges.length && Math.random() < 0.25) this.pulses.push({ e: this.edges[Math.floor(Math.random() * this.edges.length)], s: now, rev: Math.random() < 0.5 });
+    if (!calm && this.edges.length && Math.random() < 0.25) { const e = this.edges[Math.floor(Math.random() * this.edges.length)]; if (vis.has(e.s) && vis.has(e.t)) this.pulses.push({ e, s: now, rev: Math.random() < 0.5 }); }
     this.pulses = this.pulses.filter((p) => now - p.s < 1000);
     for (const p of this.pulses) {
       const a = scr.get(p.rev ? p.e.t : p.e.s), b = scr.get(p.rev ? p.e.s : p.e.t);
@@ -504,11 +536,13 @@ class BrainView {
       ctx.drawImage(this.sprites[(p.rev ? p.e.t : p.e.s).lobe], a[0] + (b[0] - a[0]) * k - sz / 2, a[1] + (b[1] - a[1]) * k - sz / 2, sz, sz);
     }
     // notas (de trás para a frente no 3D)
-    const order = this.mode === '3d' ? [...this.nodes].sort((a, b) => scr.get(b)[2] - scr.get(a)[2]) : this.nodes;
+    const shown = this.nodes.filter((n) => vis.has(n));
+    const order = this.mode === '3d' ? shown.sort((a, b) => scr.get(b)[2] - scr.get(a)[2]) : shown;
     for (const n of order) {
       const s = scr.get(n), L = lit(n), isA = n === active, depth = this.mode === '3d' ? Math.max(0.35, Math.min(1, 0.85 - s[2] * 0.5)) : 1;
       const pulse = calm ? 0 : 0.12 * Math.sin(t * 2 + (n.id.length % 7));
-      let k = (1 + pulse + L * 0.9 + (isA ? 1.1 : 0) + (n === focus ? 0.8 : 0)) * (this.mode === '3d' ? s[3] : Math.sqrt(this.view.k));
+      const grow = Math.min(1, (now - (n.shownAt || 0)) / 450), pop = grow < 1 ? 1 - (1 - grow) ** 3 : 1;
+      let k = (1 + pulse + L * 0.9 + (isA ? 1.1 : 0) + (n === focus ? 0.8 : 0) + (grow < 1 ? (1 - grow) * 1.5 : 0)) * pop * (this.mode === '3d' ? s[3] : Math.sqrt(this.view.k));
       ctx.globalAlpha = (dimmed(n) ? 0.18 : depth) * (isA || n === focus || L > 0 ? 1 : 0.35 + 0.65 * ndens);
       const size = n.r * 7 * k * this.nodeScale, spr = n.kind === 'ghost' ? this.whiteSprite : this.sprites[n.lobe];
       ctx.drawImage(spr, s[0] - size / 2, s[1] - size / 2, size, size);
@@ -521,7 +555,7 @@ class BrainView {
     // rótulos: sem sobreposição; prioridade para foco, nota aberta, vizinhas e as mais ligadas
     if (this.showLabels !== false || focus || q) {
       ctx.font = `500 11.5px ${this.font || 'system-ui'}`; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      const placed = [], cand = this.nodes.filter((n) => {
+      const placed = [], cand = shown.filter((n) => {
         if (n === focus || n === active || nb?.has(n)) return true;
         if (q) return n.label.toLowerCase().includes(q);
         if (this.showLabels === false || focus) return false;
@@ -550,6 +584,7 @@ class BrainView {
   pick(px, py) {
     let best = null, bd = Infinity;
     for (const n of this.nodes) {
+      if (!this.visible(n)) continue;
       const s = this.screen(n), r = Math.max(9, n.r * 2.2 * this.nodeScale * (s[3] || 1)), d = (s[0] - px) ** 2 + (s[1] - py) ** 2;
       if (d < r * r && d < bd && (this.mode !== '3d' || s[2] < 0.9)) { best = n; bd = d; }
     }

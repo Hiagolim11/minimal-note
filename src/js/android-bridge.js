@@ -341,6 +341,13 @@ Voltar para [[Bem-vindo]].
     // URL que a WebView consegue carregar para imagens do cofre
     fileUrl: (rel) => Cap.convertFileSrc('file://' + abs(rel).split('/').map((p, i) => (i ? encodeURIComponent(p) : p)).join('/')),
     share: (title, text) => MN.share({ title, text }),
+    // digital: guarda/recupera a senha de uma nota protegida no cofre de chaves do Android
+    bio: {
+      status: () => MN.bioStatus().catch(() => ({ available: false })),
+      save: async (key, secret) => { try { await MN.bioSave({ key, secret }); } catch (e) { throw new Error(errMsg(e)); } },
+      load: async (key) => { try { return (await MN.bioLoad({ key })).secret; } catch (e) { throw new Error(errMsg(e)); } },
+      clear: (key) => MN.bioClear({ key }),
+    },
     // revisão gramatical (LanguageTool): a conexão sai do código nativo (a CSP da página bloqueia)
     lt: {
       check: async (req) => {

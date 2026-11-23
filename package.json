@@ -1,7 +1,7 @@
 {
   "name": "minimal-note",
   "productName": "Minimal Note",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "App de notas em Markdown inspirado no Obsidian — moderno, estilizado e personalizável.",
   "main": "main.js",
   "author": {
@@ -22,11 +22,11 @@
     "android:apk": "npm run android:sync && cd android && (gradlew assembleRelease || sh gradlew assembleRelease)",
     "test": "node --test test/unit/*.test.js",
     "test:e2e": "bash test/e2e/all.sh",
-    "spell": "node build/make-spell.js",
-    "prestart": "node build/make-spell.js",
-    "predist:win": "node build/make-spell.js",
-    "prebuild:linux-dir": "node build/make-spell.js",
-    "postinstall": "node build/make-spell.js"
+    "prestart": "node build/make-vendor.js",
+    "predist:win": "node build/make-vendor.js",
+    "prebuild:linux-dir": "node build/make-vendor.js",
+    "postinstall": "node build/make-vendor.js",
+    "vendor": "node build/make-vendor.js"
   },
   "license": "MIT",
   "dependencies": {
@@ -46,7 +46,9 @@
     "dictionary-pt": "^4.0.0",
     "electron": "^45.4.1",
     "electron-builder": "^26.18.0",
-    "hunspell-asm": "^4.0.2"
+    "hunspell-asm": "^4.0.2",
+    "katex": "^0.16.11",
+    "mermaid": "^11.4.1"
   },
   "build": {
     "appId": "com.minimalnote.app",
@@ -58,6 +60,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "preload-capture.js",
       "src/**/*"
     ],
     "win": {

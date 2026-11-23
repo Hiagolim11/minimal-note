@@ -429,6 +429,104 @@ public class MinimalNotePlugin extends Plugin {
         }).start();
     }
 
+    // ---------- digital: senha das notas protegidas no AndroidKeyStore ----------
+    private static final String BIO_ALIAS = "mn_bio";
+    private interface CipherAction { void run(javax.crypto.Cipher c) throws Exception; }
+
+    private android.content.SharedPreferences bioPrefs() {
+        return getContext().getSharedPreferences("mn_bio", Context.MODE_PRIVATE);
+    }
+
+    private javax.crypto.SecretKey bioKey(boolean recreate) throws Exception {
+        java.security.KeyStore ks = java.security.KeyStore.getInstance("AndroidKeyStore");
+        ks.load(null);
+        if (recreate && ks.containsAlias(BIO_ALIAS)) ks.deleteEntry(BIO_ALIAS);
+        if (!ks.containsAlias(BIO_ALIAS)) {
+            javax.crypto.KeyGenerator kg = javax.crypto.KeyGenerator.getInstance(android.security.keystore.KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
+            android.security.keystore.KeyGenParameterSpec.Builder b = new android.security.keystore.KeyGenParameterSpec.Builder(BIO_ALIAS,
+                    android.security.keystore.KeyProperties.PURPOSE_ENCRYPT | android.security.keystore.KeyProperties.PURPOSE_DECRYPT)
+                    .setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .setUserAuthenticationRequired(true);
+            if (Build.VERSION.SDK_INT >= 24) b.setInvalidatedByBiometricEnrollment(true);
+            if (Build.VERSION.SDK_INT >= 30) b.setUserAuthenticationParameters(0, android.security.keystore.KeyProperties.AUTH_BIOMETRIC_STRONG);
+            kg.init(b.build());
+            kg.generateKey();
+        }
+        return (javax.crypto.SecretKey) ks.getKey(BIO_ALIAS, null);
+    }
+
+    private void bioPrompt(PluginCall call, javax.crypto.Cipher cipher, String title, String subtitle, CipherAction onOk) {
+        getActivity().runOnUiThread(() -> {
+            androidx.biometric.BiometricPrompt prompt = new androidx.biometric.BiometricPrompt((androidx.fragment.app.FragmentActivity) getActivity(),
+                    ContextCompat.getMainExecutor(getContext()), new androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                @Override
+                public void onAuthenticationSucceeded(androidx.biometric.BiometricPrompt.AuthenticationResult result) {
+                    try { onOk.run(result.getCryptoObject().getCipher()); }
+                    catch (Exception e) { call.reject("Não foi possível usar a digital"); }
+                }
+                @Override
+                public void onAuthenticationError(int code, CharSequence msg) { call.reject(msg == null ? "Cancelado" : msg.toString()); }
+            });
+            androidx.biometric.BiometricPrompt.PromptInfo info = new androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(title).setSubtitle(subtitle).setNegativeButtonText("Usar senha")
+                    .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG).build();
+            prompt.authenticate(info, new androidx.biometric.BiometricPrompt.CryptoObject(cipher));
+        });
+    }
+
+    @PluginMethod
+    public void bioStatus(PluginCall call) {
+        int r = androidx.biometric.BiometricManager.from(getContext()).canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG);
+        JSObject o = new JSObject();
+        o.put("available", r == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS);
+        call.resolve(o);
+    }
+
+    @PluginMethod
+    public void bioSave(PluginCall call) {
+        String key = call.getString("key", ""), secret = call.getString("secret", "");
+        if (key.isEmpty() || secret.isEmpty()) { call.reject("Dados inválidos"); return; }
+        try {
+            javax.crypto.Cipher c = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            try { c.init(javax.crypto.Cipher.ENCRYPT_MODE, bioKey(false)); }
+            catch (android.security.keystore.KeyPermanentlyInvalidatedException e) { bioPrefs().edit().clear().apply(); c.init(javax.crypto.Cipher.ENCRYPT_MODE, bioKey(true)); }
+            bioPrompt(call, c, "Usar a digital", "Confirme para guardar a senha desta nota", (cipher) -> {
+                byte[] ct = cipher.doFinal(secret.getBytes(StandardCharsets.UTF_8));
+                String v = Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP) + ":" + Base64.encodeToString(ct, Base64.NO_WRAP);
+                bioPrefs().edit().putString(key, v).apply();
+                call.resolve();
+            });
+        } catch (Exception e) { call.reject("Digital indisponível neste aparelho"); }
+    }
+
+    @PluginMethod
+    public void bioLoad(PluginCall call) {
+        String key = call.getString("key", "");
+        String v = bioPrefs().getString(key, null);
+        if (v == null || !v.contains(":")) { call.reject("Nenhuma digital salva para esta nota"); return; }
+        try {
+            byte[] iv = Base64.decode(v.substring(0, v.indexOf(':')), Base64.NO_WRAP);
+            byte[] ct = Base64.decode(v.substring(v.indexOf(':') + 1), Base64.NO_WRAP);
+            javax.crypto.Cipher c = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            c.init(javax.crypto.Cipher.DECRYPT_MODE, bioKey(false), new javax.crypto.spec.GCMParameterSpec(128, iv));
+            bioPrompt(call, c, "Abrir nota protegida", "Use a digital", (cipher) -> {
+                JSObject o = new JSObject();
+                o.put("secret", new String(cipher.doFinal(ct), StandardCharsets.UTF_8));
+                call.resolve(o);
+            });
+        } catch (android.security.keystore.KeyPermanentlyInvalidatedException e) {
+            bioPrefs().edit().clear().apply();
+            call.reject("As digitais do aparelho mudaram: digite a senha e ative de novo");
+        } catch (Exception e) { call.reject("Não foi possível usar a digital"); }
+    }
+
+    @PluginMethod
+    public void bioClear(PluginCall call) {
+        bioPrefs().edit().remove(call.getString("key", "")).apply();
+        call.resolve();
+    }
+
     @PluginMethod
     public void share(PluginCall call) {
         String title = call.getString("title", "");
@@ -505,6 +603,7 @@ public class MinimalNotePlugin extends Plugin {
                 case "com.minimalnote.app.NEW_NOTE": d.put("type", "new"); break;
                 case "com.minimalnote.app.DAILY_NOTE": d.put("type", "daily"); break;
                 case "com.minimalnote.app.SEARCH": d.put("type", "search"); break;
+                case "com.minimalnote.app.TASKS": d.put("type", "tasks"); break;
                 case Intent.ACTION_SEND: {
                     d.put("type", "share");
                     CharSequence text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);

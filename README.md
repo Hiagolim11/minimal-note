@@ -13,7 +13,14 @@ App de notas em Markdown, local e personalizável, inspirado no Obsidian — fei
 - **Corretor em português** (sem internet): sublinha erros de ortografia com sugestões no clique direito (ou toque), dicionário pessoal guardado no cofre, correção automática de acentos óbvios (`nao` → `não`; Backspace desfaz) e ajustes de digitação (maiúscula no início da frase, espaço antes de vírgula, `...` → `…`, `--` → `—`, aspas tipográficas opcionais). Ignora código, links, tags e endereços
 - **Revisão gramatical** opcional com o [LanguageTool](https://languagetool.org) (`F7`): vírgulas, crase, concordância e regência, com painel de sugestões. Desligada por padrão; usa o servidor público (o texto da nota é enviado a languagetool.org) ou um servidor próprio
 - **Callouts** (`> [!tip]`), tarefas clicáveis, tabelas, destaques `==texto==`, frontmatter YAML
-- **Busca** em todo o cofre, painel de tags, sumário, nota diária e paleta de comandos (`Ctrl+P`)
+- **Busca inteligente** em todo o cofre: sem acento, com erro de digitação (`exenplo` acha `exemplo`), frases exatas e filtros (`tag:`, `pasta:`, `tarefa:pendente`, `editada:semana`, `criada:2026-11`, `-excluir`), com o trecho encontrado em cada nota
+- **Modelos de nota** (`Ctrl+Shift+N`): notas da pasta `Modelos` com `{{título}}`, `{{data}}`, `{{hora}}`, `{{cursor}}`…; a nota diária usa o modelo “Diário”
+- **Painel de tarefas**: todas as `- [ ]` do cofre, com datas (`📅 2026-12-01` ou digite `@hoje`, `@amanhã`, `@sexta`), filtros (hoje, atrasadas, próximos 7 dias…) e lembrete do sistema
+- **Sugestões de links**: menções a outras notas sem `[[ ]]`, notas que citam a atual sem link e notas parecidas, com botão para ligar
+- **Captura rápida**: `Ctrl+Alt+N` em qualquer programa abre uma janelinha que salva na “Caixa de entrada”; no Android, widget na tela inicial
+- **Tabelas, fórmulas e diagramas**: Tab/Enter navegam e alinham tabelas; `$E=mc^2$` e `$$…$$` com KaTeX; blocos ` ```mermaid ` viram fluxogramas e linhas do tempo
+- **Notas protegidas por senha** (AES-256-GCM): o arquivo fica cifrado no disco; desbloqueie com a senha (ou a digital, no Android); bloqueio automático após um tempo sem uso
+- **Busca** de tags, sumário, nota diária e paleta de comandos (`Ctrl+P`)
 - **11 temas**, cor de destaque, cores do tema editáveis, fontes, tamanhos, efeitos de vidro e fundo animado
 - **Partículas e cursor**: fundo animado (poeira de luz, vaga-lumes, estrelas, neve, bokeh ou bolhas) e efeitos no ponteiro (brilhos em estrela, rastro de luz, aura ou confete, com explosão ao clicar). Estilos prontos, controle de quantidade, velocidade, tamanho, intensidade, cor e reação ao mouse. Tudo roda num único loop leve que pausa com a janela minimizada e respeita "reduzir movimento"
 - **Criador de temas**: gere uma paleta a partir de uma cor, ajuste cada cor (inclusive títulos, links, tags e marca-texto), veja a pré-visualização ao vivo, confira o contraste e salve seus próprios temas
@@ -48,7 +55,7 @@ O `.deb` é montado por `build/make-deb.js` a partir de `dist/linux-unpacked`, e
 Instalar no Linux (Debian/Ubuntu):
 
 ```bash
-sudo apt install ./dist/minimal-note_1.8.0_amd64.deb
+sudo apt install ./dist/minimal-note_1.9.0_amd64.deb
 ```
 
 
@@ -93,6 +100,8 @@ Sem esse arquivo o APK de release sai sem assinatura (use `gradlew assembleDebug
 | Comandos | `Ctrl+Shift+P` |
 | Localizar / substituir na nota | `Ctrl+F` / `Ctrl+H` |
 | Revisar gramática (LanguageTool) | `F7` |
+| Nova nota a partir de modelo | `Ctrl+Shift+N` |
+| Captura rápida (em qualquer programa) | `Ctrl+Alt+N` |
 | Edição ↔ leitura | `Ctrl+E` |
 | Modo dividido | `Ctrl+\` |
 | Grafo | `Ctrl+G` |
@@ -101,10 +110,17 @@ Sem esse arquivo o APK de release sai sem assinatura (use `gradlew assembleDebug
 
 ## Corretor ortográfico
 
-- `build/make-spell.js` (roda sozinho no `npm install`, `npm start`, nas builds e no `www/`) gera `src/vendor/spell/`: o Hunspell em WebAssembly (`hunspell-asm`) e o dicionário VERO pt-BR (`dictionary-pt`) como script, para o worker `src/js/spell-worker.js` carregar sem rede
+- `build/make-vendor.js` (roda sozinho no `npm install`, `npm start`, nas builds e no `www/`) gera `src/vendor/`: KaTeX e Mermaid (fórmulas e diagramas) e, em `spell/`, o Hunspell em WebAssembly (`hunspell-asm`) e o dicionário VERO pt-BR (`dictionary-pt`) como script, para o worker `src/js/spell-worker.js` carregar sem rede
 - As regras de texto (o que ignorar no Markdown, correção automática, ajustes de digitação, divisão para o LanguageTool) ficam em `src/js/spell-text.js`, testadas em `test/unit/spell.test.js`
 - A revisão gramatical sai pelo processo principal (Electron) ou pelo plugin nativo (Android); o endereço do servidor vem das configurações e precisa ser `https://` (ou `http://` só na rede local)
 - O dicionário VERO é distribuído sob LGPL-3.0 ou MPL-2.0 (licença em `src/vendor/spell/LICENSE-dictionary-pt.txt`)
+
+## Notas protegidas
+
+- `src/js/vault-crypto.js`: AES-256-GCM com chave derivada da senha (PBKDF2-SHA256, 250 mil iterações, sal e IV aleatórios). O arquivo continua `.md`, com um aviso e o conteúdo cifrado (`MNENC1:`)
+- `src/js/protect.js`: tela de bloqueio, gravação sempre cifrada, renomear/mover mantém a senha, duplicar é bloqueado, busca ignora o texto cifrado, bloqueio por inatividade
+- Android: a senha pode ficar no AndroidKeyStore, liberada pela digital (`androidx.biometric`)
+- **Sem a senha não há como recuperar a nota.**
 
 ## Licença
 

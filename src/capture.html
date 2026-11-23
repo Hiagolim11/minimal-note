@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; object-src 'none'">
+  <title>Captura rápida</title>
+  <style>
+    :root { --bg: #12141c; --bg2: #1a1d29; --text: #e8eaf2; --muted: #9aa0b4; --border: #2a2f42; --accent: #8b83f0; color-scheme: dark; }
+    @media (prefers-color-scheme: light) { :root { --bg: #fbfbfd; --bg2: #f1f2f7; --text: #1d2030; --muted: #5f667a; --border: #dcdfe8; --accent: #6a5fe0; color-scheme: light; } }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, "Segoe UI", sans-serif; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    header { -webkit-app-region: drag; display: flex; align-items: center; gap: 8px; padding: 10px 14px 6px; font-size: 12.5px; color: var(--muted); }
+    header b { color: var(--text); font-weight: 600; }
+    header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+    textarea { flex: 1; margin: 0 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--text); font: inherit; resize: none; outline: none; }
+    textarea:focus { border-color: var(--accent); }
+    footer { display: flex; align-items: center; gap: 8px; padding: 10px 14px 12px; font-size: 12px; color: var(--muted); }
+    footer .grow { flex: 1; }
+    kbd { font: 11px ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px; }
+    select, button { font: inherit; font-size: 12.5px; height: 30px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg2); color: var(--text); padding: 0 10px; cursor: pointer; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    #msg { color: #e5484d; }
+  </style>
+</head>
+<body>
+  <header><span class="dot"></span><b>Captura rápida</b><span>· Minimal Note</span></header>
+  <textarea id="t" placeholder="Anote algo… (Ctrl+Enter salva, Esc fecha)" autofocus spellcheck="true"></textarea>
+  <footer>
+    <select id="mode" aria-label="Onde salvar">
+      <option value="inbox">Caixa de entrada</option>
+      <option value="note">Nova nota</option>
+    </select>
+    <span id="msg"></span><span class="grow"></span>
+    <span><kbd>Esc</kbd> fecha</span>
+    <button id="cancel">Cancelar</button>
+    <button id="save" class="primary">Salvar <kbd style="border-color:#fff6">Ctrl ↵</kbd></button>
+  </footer>
+  <script src="js/capture.js"></script>
+</body>
+</html>

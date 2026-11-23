@@ -41,4 +41,13 @@ out=$(bash test/e2e/run.sh test/e2e/spell.js 'node test/e2e/lt-server.js')
 check spell "$out" 'corretor: ready' 'erros: [\"nao\",\"exenplo\",\"Hiago\"]' 'desalinhamento=0.00' 'digitado: \"Hoje você vai \"' 'auto: \"vai não \"' 'desfeito: \"vai nao \"' 'virgula: \" Fim,\"' 'reticencias: \" e isso…\"' 'espacos: \"… um b\"' 'depois: [\"Informação\"]' '{\"open\":true,\"sugs\":[\"exemplo\"]}' '{\"fixed\":true,\"closed\":true}' '{\"file\":\"Hiago\n\",\"underlined\":false}' '[\"a\",\"Crase\",[\"à\"]],[\"a\",\"Crase\",[\"à\"]]' '\"linha\":\"Fui à praia ontem. Depois, Fui a praia de novo.\",\"restam\":1' '{\"trecho\":\"Fui a praia\",\"s\":43}' '{\"dialog\":true,\"title\":\"Revisão gramatical\"}' '{\"ltEnabled\":false}' 'código como texto: false'
 out=$(bash test/e2e/run.sh test/e2e/brain.js)
 check brain "$out" '"classe\":\"BrainView\",\"modo\":\"2d\"' 'fora do lobo (2D): 0' '{\"aba\":\"Diário/Nota 2.md\",\"tipo\":\"note\"}' '\"modo\":\"3d\",\"mesma\":\"BrainView\"' 'fora do lobo (3D): 0' 'girou: true' '{\"aba\":\"Ideias/Nota 3.md\"}' '{\"estilo\":\"net\",\"classe\":\"GraphView\",\"brainClass\":false,\"canvases\":1}' '{\"classe\":\"BrainView\",\"canvases\":1}' 'erros: []'
+out=$(bash test/e2e/run.sh test/e2e/features.js)
+check features "$out" 'busca com erro: Roadmap | marca: orçamento' 'pasta receitas · tarefas pendentes | - [ ] comprar ovos' 'chips: 8' 'modelos: Diário,Leitura,Projeto,Reunião' '\"cursorNaPauta\":true,\"sobrou\":false' 'hoje: enviar contrato,revisar orçamento | badge: 2' 'concluída no arquivo: true'
+grep -q 'data rápida: - \[ \] comprar ovos 📅 ' <<<"$out" || { echo "✖ features: data rápida"; fail=1; }
+out=$(bash test/e2e/run.sh test/e2e/features2.js)
+check features2 "$out" '\"katex\":2,\"bloco\":1,\"dinheiro\":true,\"svg\":true,\"erro\":false' 'ligado: Falei com o [[Cliente X|cliente x]]' 'outra nota: Valores do projeto. [[Ciência]]' 'nova linha começa com: \"| \"' 'Caixa de entrada.md' 'Notas rápidas/Ideia de app.md' 'janela de captura: true' 'vazio recusado: Nada para salvar'
+out=$(bash test/e2e/run.sh test/e2e/brain-tools.js)
+check brain-tools "$out" 'meio: 22 visíveis' 'fim: 42 · hoje' 'terminou: 42 visíveis' 'foco: 5 visíveis · salvo true' 'sem foco: 42' 'fora do lobo: 0' 'rede esconde: none'
+out=$(bash test/e2e/run.sh test/e2e/protect.js)
+check protect "$out" '{\"cifrado\":true,\"vazou\":false,\"naTela\":true}' 'Nova linha secreta' '\"bloqueadas\":1,\"tela\":true,\"somenteLeitura\":true,\"busca\":\"0 nota(s)\"' 'errada: Senha incorreta' '{\"aberta\":true,\"texto\":true}' '{\"novoCifrado\":true,\"vazou\":false}' 'cópias: 1' '{\"cifrado\":false,\"texto\":true}' '{\"a\":true,\"b\":true}' '{\"aAberta\":true,\"texto\":\"nota a\"}'
 exit $fail

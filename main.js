@@ -1,5 +1,5 @@
 // Minimal Note — processo principal do Electron
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, session, globalShortcut } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const fs = require('fs/promises');
@@ -257,6 +257,7 @@ function createWindow(bounds) {
   win.on('minimize', sendState);
   win.on('restore', sendState);
 
+  win.on('closed', () => { if (captureWin && !captureWin.isDestroyed()) captureWin.destroy(); });
   win.on('close', () => {
     try {
       settings.windowBounds = { ...win.getNormalBounds(), maximized: win.isMaximized() };
@@ -274,10 +275,65 @@ const handle = (ch, fn) => ipcMain.handle(ch, async (_e, ...args) => {
 handle('settings:get', async () => settings);
 handle('settings:set', async (data) => {
   if (!data || typeof data !== 'object') throw new Error('Configurações inválidas');
+  const hadCapture = settings.quickCapture;
   settings = { ...data, vaultPath: settings.vaultPath, windowBounds: settings.windowBounds };
   await saveSettings();
+  if (hadCapture !== settings.quickCapture) registerCapture();
   return true;
 });
+
+// ---------- captura rápida (Ctrl+Alt+N em qualquer lugar do sistema) ----------
+const CAPTURE_KEY = 'CommandOrControl+Alt+N';
+let captureWin = null;
+function openCapture() {
+  if (captureWin && !captureWin.isDestroyed()) { captureWin.show(); captureWin.focus(); return true; }
+  captureWin = new BrowserWindow({
+    width: 560, height: 300, frame: false, resizable: false, alwaysOnTop: true, skipTaskbar: true, show: false,
+    backgroundColor: '#12141c', title: 'Captura rápida',
+    webPreferences: { preload: path.join(__dirname, 'preload-capture.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true },
+  });
+  captureWin.loadFile(path.join(__dirname, 'src', 'capture.html'));
+  captureWin.once('ready-to-show', () => { captureWin.show(); captureWin.focus(); });
+  captureWin.webContents.on('will-navigate', (e) => e.preventDefault());
+  captureWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  captureWin.on('closed', () => { captureWin = null; });
+  return true;
+}
+function registerCapture() {
+  try { globalShortcut.unregister(CAPTURE_KEY); } catch { /* não estava registrado */ }
+  if (settings.quickCapture === false) return false;
+  try { return globalShortcut.register(CAPTURE_KEY, openCapture); } catch { return false; }
+}
+const pad2 = (n) => String(n).padStart(2, '0');
+async function saveCapture({ text, mode } = {}) {
+  const body = String(text || '').replace(/\r\n/g, '\n').trim();
+  if (!body) throw new Error('Nada para salvar');
+  if (!vaultRoot) throw new Error('Nenhum cofre aberto');
+  const d = new Date(), stamp = `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  let rel;
+  if (mode === 'note') {
+    // nota nova na pasta "Notas rápidas", com o começo do texto como nome
+    const first = body.split('\n')[0].replace(/^#+\s*/, '').replace(/[\\/:*?"<>|#^[\]]/g, '').trim().slice(0, 60) || 'Nota rápida';
+    const base = `Notas rápidas/${first}`;
+    rel = base + '.md';
+    for (let i = 2; await exists(resolveInVault(rel)); i++) rel = `${base} ${i}.md`;
+    await atomicWrite(resolveInVault(rel), body + '\n');
+  } else {
+    // acrescenta na nota "Caixa de entrada" (cria se não existir)
+    rel = (String(settings.captureNote || 'Caixa de entrada').replace(/[\\:*?"<>|]/g, '') || 'Caixa de entrada') + '.md';
+    const abs = resolveInVault(rel);
+    let cur = '';
+    try { cur = await fs.readFile(abs, 'utf8'); } catch { cur = '# Caixa de entrada\n\nAnotações rápidas (Ctrl+Alt+N). Organize quando der.\n'; }
+    const lines = body.split('\n');
+    const entry = lines.length === 1 ? `- ${stamp} · ${body}` : `- ${stamp} · ${lines[0]}\n` + lines.slice(1).map((l) => '  ' + l).join('\n');
+    await atomicWrite(abs, cur.replace(/\s*$/, '\n') + entry + '\n');
+  }
+  win?.webContents.send('vault:changed');
+  return rel;
+}
+handle('capture:open', async () => openCapture());
+handle('capture:save', async (req) => saveCapture(req));
+handle('capture:close', async () => { captureWin?.close(); return true; });
 
 // ---------- revisão gramatical (LanguageTool) ----------
 // O endereço vem das configurações salvas (nunca do renderer): servidor público ou um servidor
@@ -513,7 +569,9 @@ else {
     // a interface não usa a internet; o que chegar aqui são imagens/estilos remotos dentro das notas
     session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (_d, cb) => cb({ cancel: settings.remoteImages !== true }));
     createWindow(settings.windowBounds);
+    registerCapture();
     if (TEST_MODE && process.env.LUMEN_TEST_SCRIPT) win.webContents.once('did-finish-load', runTestScript);
   });
   app.on('window-all-closed', () => { watcher?.close(); app.quit(); });
+  app.on('will-quit', () => { try { globalShortcut.unregisterAll(); } catch { /* ok */ } });
 }

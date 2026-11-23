@@ -17,6 +17,7 @@
     /\[\^[^\]\n]*\]/g,                           // notas de rodapé [^1]
     /&[#\w]+;/g,                                 // entidades HTML
     /\$\$[\s\S]*?\$\$/g,                         // fórmulas em bloco
+    /\$(?!\s)[^$\n]+?(?<!\s)\$(?!\d)/g,          // fórmulas na linha ($x^2$)
   ];
 
   function skipRanges(text) {

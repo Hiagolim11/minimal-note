@@ -53,10 +53,33 @@ const MD = (() => {
     renderer(t) { return `<mark>${this.parser.parseInline(t.tokens)}</mark>`; },
   };
 
+  // fórmulas: $$ ... $$ (bloco) e $...$ (na linha) — o KaTeX desenha depois da limpeza do HTML
+  const mathBlock = {
+    name: 'mathBlock',
+    level: 'block',
+    start(src) { const i = src.indexOf('$$'); return i < 0 ? undefined : i; },
+    tokenizer(src) {
+      const m = /^\$\$([\s\S]+?)\$\$[ \t]*(?:\n|$)/.exec(src);
+      if (m) return { type: 'mathBlock', raw: m[0], tex: m[1].trim() };
+    },
+    renderer(t) { return `<div class="math math-block" data-tex="${esc(t.tex)}">${esc(t.tex)}</div>\n`; },
+  };
+  const mathInline = {
+    name: 'mathInline',
+    level: 'inline',
+    start(src) { const i = src.indexOf('$'); return i < 0 ? undefined : i; },
+    tokenizer(src) {
+      // $x$ precisa de texto colado nos dois cifrões e não pode ser valor em dinheiro ($5)
+      const m = /^\$(?!\s)((?:\\\$|[^$\n])+?)(?<!\s)\$(?!\d)/.exec(src);
+      if (m && !/^\d+([.,]\d+)?$/.test(m[1])) return { type: 'mathInline', raw: m[0], tex: m[1] };
+    },
+    renderer(t) { return `<span class="math" data-tex="${esc(t.tex)}">${esc(t.tex)}</span>`; },
+  };
+
   marked.use({
     gfm: true,
     breaks: true,
-    extensions: [wikilink, tag, highlight],
+    extensions: [mathBlock, mathInline, wikilink, tag, highlight],
     renderer: {
       heading(text, level, raw) { return `<h${level} id="h-${slug(raw)}">${text}</h${level}>\n`; },
       image(href, title, text) {
@@ -70,6 +93,7 @@ const MD = (() => {
       },
       code(code, lang) {
         const l = (lang || '').split(/\s/)[0];
+        if (l === 'mermaid') return `<div class="mermaid-block" data-src="${esc(code)}"><pre class="mermaid-src">${esc(code)}</pre></div>`;
         return `<div class="code-block"><div class="code-head"><span>${esc(l || 'texto')}</span><button class="copy-code" type="button">Copiar</button></div><pre><code class="lang-${esc(l)}">${esc(code)}</code></pre></div>`;
       },
     },
@@ -105,7 +129,7 @@ const MD = (() => {
     const { meta, body } = splitFrontmatter(src);
     let html = marked.parse(body);
     html = DOMPurify.sanitize(html, {
-      ADD_ATTR: ['data-target', 'data-heading', 'data-tag', 'data-external'], ADD_TAGS: ['mark'],
+      ADD_ATTR: ['data-target', 'data-heading', 'data-tag', 'data-external', 'data-tex', 'data-src'], ADD_TAGS: ['mark'],
       // igual ao padrão do DOMPurify + file: (imagens do cofre são carregadas do disco)
       ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
     });
@@ -141,6 +165,12 @@ const MD = (() => {
       let n = cb.nextSibling;
       while (n && !(n.nodeType === 1 && /^(UL|OL)$/.test(n.tagName))) { const next = n.nextSibling; span.appendChild(n); n = next; }
       cb.after(span);
+    });
+
+    // fórmulas (KaTeX escapa o texto da fórmula; erros aparecem em vermelho no lugar)
+    if (typeof katex !== 'undefined') wrap.querySelectorAll('.math[data-tex]').forEach((el) => {
+      try { katex.render(el.dataset.tex, el, { displayMode: el.classList.contains('math-block'), throwOnError: false, output: 'html' }); }
+      catch { el.classList.add('math-error'); }
     });
 
     // tabelas roláveis
@@ -191,5 +221,36 @@ const MD = (() => {
     return { links, tags: [...tags], headings, words, meta };
   }
 
-  return { render, analyze, hooks, slug, esc, IMG_RE };
+  // diagramas: carrega o Mermaid só quando a nota tem um (é grande) e desenha em SVG
+  let mermaidP = null, seq = 0;
+  function loadMermaid() {
+    if (typeof mermaid !== 'undefined') return Promise.resolve(window.mermaid);
+    return mermaidP || (mermaidP = new Promise((resolve, reject) => {
+      const s = document.createElement('script'); s.src = 'vendor/mermaid/mermaid.min.js';
+      s.onload = () => resolve(window.mermaid); s.onerror = () => { mermaidP = null; reject(new Error('Mermaid indisponível')); };
+      document.head.appendChild(s);
+    }));
+  }
+  async function renderDiagrams(root) {
+    const blocks = [...root.querySelectorAll('.mermaid-block:not(.done)')];
+    if (!blocks.length) return 0;
+    let m;
+    try { m = await loadMermaid(); } catch { return 0; }
+    const dark = getComputedStyle(document.documentElement).colorScheme?.includes('dark') || document.documentElement.classList.contains('dark') || matchMedia('(prefers-color-scheme: dark)').matches;
+    m.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'default', fontFamily: 'inherit' });
+    let ok = 0;
+    for (const el of blocks) {
+      try {
+        const src = el.querySelector('.mermaid-src')?.textContent || '';
+        const { svg } = await m.render('mn-diagram-' + (++seq), src);
+        el.insertAdjacentHTML('afterbegin', svg); el.classList.add('done'); ok++;
+      } catch (e) {
+        el.classList.add('done', 'error');
+        el.insertAdjacentHTML('beforeend', `<div class="mermaid-error">Diagrama com erro: ${esc(String(e?.message || e).split('\n')[0])}</div>`);
+      }
+    }
+    return ok;
+  }
+
+  return { render, analyze, hooks, slug, esc, IMG_RE, renderDiagrams };
 })();
