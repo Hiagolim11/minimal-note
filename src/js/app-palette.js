@@ -5,16 +5,25 @@
 function updateGraph() {
   const g = S.settings.graph;
   ['tags', 'orphans', 'ghosts', 'labels'].forEach((k) => { $('#g-' + k).checked = !!g[k]; });
+  // estilo: rede de forças (GraphView) ou cérebro 2D/3D (BrainView); trocar de estilo troca a visualização
+  const style = ['net', 'brain2d', 'brain3d'].includes(g.style) ? g.style : 'brain2d';
+  $$('#g-style button').forEach((b) => b.classList.toggle('active', b.dataset.style === style));
+  $('#graph-view').classList.toggle('brain', style !== 'net');
+  const wantBrain = style !== 'net', mode = style === 'brain3d' ? '3d' : '2d';
+  if (S.graph && (S.graph instanceof BrainView) !== wantBrain) { S.graph.destroy(); S.graph = null; }
   if (!S.graph) {
-    S.graph = new GraphView($('#graph-canvas'), {
+    const opts = {
       getActive: () => S.lastNote,
+      mode,
       onOpen: (n, e) => {
         if (n.kind === 'note') openNote(n.id, { newTab: true });
         else if (n.kind === 'ghost') openOrCreateByName(n.label, { newTab: true });
         else if (n.kind === 'tag') searchTag(n.label.slice(1));
       },
-    });
-  }
+    };
+    S.graph = wantBrain ? new BrainView($('#graph-canvas'), opts) : new GraphView($('#graph-canvas'), opts);
+    S.graph.filter = $('#graph-filter').value;
+  } else if (wantBrain) S.graph.setMode(mode);
   const nodes = [], edges = [], ids = new Set();
   const deg = new Map();
   for (const n of S.notes.values()) {

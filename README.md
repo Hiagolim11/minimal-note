@@ -8,7 +8,7 @@ App de notas em Markdown, local e personalizável, inspirado no Obsidian — fei
 
 - **Arquivos `.md` comuns** numa pasta (o *cofre*), sem banco de dados nem nuvem
 - **Links `[[wiki]]`** com autocompletar, backlinks e renomeação que atualiza os links
-- **Grafo** interativo das notas, tags e links não criados
+- **Grafo** interativo das notas, tags e links não criados, em três estilos: **Rede**, **Cérebro** (neon, cada pasta vira um lobo, a nota aberta solta uma onda de luz pelas notas ligadas) e **3D** (cérebro em nuvem de pontos que gira com o mouse ou o dedo)
 - **Editor, leitura e modo dividido**, com listas inteligentes, atalhos de formatação, colagem de imagens e localizar/substituir na nota
 - **Corretor em português** (sem internet): sublinha erros de ortografia com sugestões no clique direito (ou toque), dicionário pessoal guardado no cofre, correção automática de acentos óbvios (`nao` → `não`; Backspace desfaz) e ajustes de digitação (maiúscula no início da frase, espaço antes de vírgula, `...` → `…`, `--` → `—`, aspas tipográficas opcionais). Ignora código, links, tags e endereços
 - **Revisão gramatical** opcional com o [LanguageTool](https://languagetool.org) (`F7`): vírgulas, crase, concordância e regência, com painel de sugestões. Desligada por padrão; usa o servidor público (o texto da nota é enviado a languagetool.org) ou um servidor próprio
@@ -48,7 +48,7 @@ O `.deb` é montado por `build/make-deb.js` a partir de `dist/linux-unpacked`, e
 Instalar no Linux (Debian/Ubuntu):
 
 ```bash
-sudo apt install ./dist/minimal-note_1.7.0_amd64.deb
+sudo apt install ./dist/minimal-note_1.8.0_amd64.deb
 ```
 
 

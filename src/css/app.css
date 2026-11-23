@@ -739,3 +739,13 @@ mark.hl, .sr-hit mark { background: color-mix(in srgb, var(--accent) 30%, transp
 .dict-word button { border: 0; background: none; color: var(--text-faint); cursor: pointer; display: inline-flex; padding: 2px; border-radius: 50%; }
 .dict-word button:hover { color: #e5484d; }
 .dict-empty { font-size: 13px; color: var(--text-faint); }
+
+/* ===== grafo: seletor de estilo e cérebro ===== */
+.graph-toolbar .graph-style { margin: 0; height: 30px; padding: 2px; background: color-mix(in srgb, var(--bg-3) 85%, transparent); backdrop-filter: blur(10px); border: 1px solid var(--border); }
+.graph-toolbar .graph-style button { flex: none; padding: 0 10px; height: 24px; font-size: 12.5px; }
+.graph-view.brain { background: #03050c; }
+.graph-view.brain .graph-stats { color: rgba(200,215,255,.6); }
+.graph-view.brain .graph-toolbar .chip, .graph-view.brain .graph-toolbar .search-box, .graph-view.brain .graph-toolbar .icon-btn, .graph-view.brain .graph-toolbar .graph-style { background: rgba(10,16,40,.72); border-color: rgba(120,150,255,.25); color: #d8e0ff; }
+.graph-view.brain .graph-toolbar .search-box input { color: #e6ebff; }
+.graph-view.brain .graph-style button.active { background: rgba(90,120,255,.3); color: #fff; box-shadow: none; }
+.graph-view.brain .graph-canvas canvas { touch-action: none; }

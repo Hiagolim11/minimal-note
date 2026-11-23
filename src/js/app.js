@@ -214,8 +214,12 @@ function bindUI() {
 
   // grafo
   ['tags', 'orphans', 'ghosts', 'labels'].forEach((k) => $('#g-' + k).addEventListener('change', (e) => { S.settings.graph = { ...S.settings.graph, [k]: e.target.checked }; saveSettings(); updateGraph(); }));
-  $('#graph-filter').addEventListener('input', (e) => { if (S.graph) S.graph.filter = e.target.value; });
+  $('#graph-filter').addEventListener('input', (e) => { if (S.graph) { S.graph.filter = e.target.value; S.graph.kick?.(); } });
   $('#g-center').addEventListener('click', () => S.graph?.center());
+  $('#g-style').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-style]'); if (!b) return;
+    S.settings.graph = { ...S.settings.graph, style: b.dataset.style }; saveSettings(); updateGraph();
+  });
 
   // configurações
   $('#settings-nav').addEventListener('click', (e) => { const b = e.target.closest('[data-sec]'); if (b) { curSection = b.dataset.sec; openSettings(); } });

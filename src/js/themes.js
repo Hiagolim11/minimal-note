@@ -130,7 +130,7 @@ const DEFAULT_SETTINGS = {
   rightPanel: 'outline',
   openTabs: [],
   activeTab: null,
-  graph: { tags: false, orphans: true, labels: true, ghosts: true },
+  graph: { tags: false, orphans: true, labels: true, ghosts: true, style: 'brain2d' }, // style: net | brain2d | brain3d
 };
 
 function hexToRgb(hex) {
