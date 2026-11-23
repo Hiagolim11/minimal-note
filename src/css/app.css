@@ -694,3 +694,48 @@ mark.hl, .sr-hit mark { background: color-mix(in srgb, var(--accent) 30%, transp
 :root.touch .fb-btn { min-width: 38px; height: 38px; }
 :root.touch .fb-input { height: 38px; font-size: 16px; }
 @media (max-width: 480px) { .findbar { max-width: none; border-radius: 0; border-left: 0; border-right: 0; } .fb-count { min-width: 40px; } .fb-case { display: none; } }
+
+/* ===== corretor: sugestões ===== */
+.spell-pop { position: fixed; z-index: 60; min-width: 200px; max-width: min(360px, calc(100vw - 16px)); padding: 8px;
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 10px 30px rgb(0 0 0 / .25); }
+.spell-pop[hidden] { display: none; }
+.sp-head { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-faint); padding: 2px 4px 6px; }
+.sp-head span { color: #e5484d; text-decoration: line-through; text-decoration-color: color-mix(in srgb, #e5484d 50%, transparent); font-weight: 600; }
+.sp-head.gr span { color: #3b82f6; text-decoration: none; }
+.sp-msg { margin: 0 4px 8px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+.sp-sugs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 0 6px; }
+.sp-wait { font-size: 12px; color: var(--text-faint); padding: 4px; }
+.sp-actions { display: flex; flex-wrap: wrap; gap: 4px; border-top: 1px solid var(--border); padding-top: 6px; }
+.sp-btn { border: 0; background: none; color: var(--text-muted); font: inherit; font-size: 13px; padding: 5px 9px; border-radius: var(--radius-sm); cursor: pointer; }
+.sp-btn:hover { background: var(--accent-soft); color: var(--text); }
+.sp-sug { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.sp-sug:hover { background: var(--accent); color: #fff; }
+:root.touch .sp-btn { padding: 9px 12px; font-size: 14px; }
+
+/* ===== revisão gramatical ===== */
+#review { display: flex; flex-direction: column; gap: 8px; }
+.rv-head { display: flex; align-items: center; gap: 8px; }
+.rv-kbd { font-size: 11px; color: var(--text-faint); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+.rv-empty, .rv-count { font-size: 13px; color: var(--text-faint); margin: 4px 0; line-height: 1.45; }
+.rv-error { font-size: 13px; color: #e5484d; margin: 4px 0; }
+.rv-item { padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: color-mix(in srgb, var(--bg) 60%, transparent); }
+.rv-item:hover { border-color: color-mix(in srgb, #3b82f6 50%, var(--border)); }
+.rv-short { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #3b82f6; margin-bottom: 4px; }
+.rv-ctx { font-size: 13px; color: var(--text-muted); line-height: 1.45; overflow-wrap: anywhere; }
+.rv-ctx mark { background: color-mix(in srgb, #3b82f6 22%, transparent); color: var(--text); border-radius: 2px; padding: 0 1px; }
+.rv-msg { font-size: 12.5px; color: var(--text-faint); margin: 5px 0 7px; line-height: 1.4; }
+.rv-acts { display: flex; flex-wrap: wrap; gap: 4px; }
+.rv-rep, .rv-ign { border: 0; font: inherit; font-size: 12.5px; padding: 4px 9px; border-radius: var(--radius-sm); cursor: pointer; }
+.rv-rep { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.rv-rep:hover { background: var(--accent); color: #fff; }
+.rv-ign { background: none; color: var(--text-faint); }
+.rv-ign:hover { color: var(--text); }
+#review .btn[disabled] { opacity: .6; cursor: default; }
+
+/* dicionário pessoal nas configurações */
+.dict-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 0 4px; }
+.dict-list[hidden] { display: none; }
+.dict-word { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 9px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; }
+.dict-word button { border: 0; background: none; color: var(--text-faint); cursor: pointer; display: inline-flex; padding: 2px; border-radius: 50%; }
+.dict-word button:hover { color: #e5484d; }
+.dict-empty { font-size: 13px; color: var(--text-faint); }

@@ -101,6 +101,7 @@ function bindUI() {
     getSettings: () => S.settings,
   });
   editor.ta.spellcheck = S.settings.spellcheck;
+  window.__lumenSpell?.sync();
 
   // título
   const title = $('#note-title');

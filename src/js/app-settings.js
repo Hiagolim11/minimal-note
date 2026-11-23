@@ -114,9 +114,23 @@ function renderSection() {
         ${row('Modo padrão de novas abas', '', selectCtl('defaultMode', { edit: 'Edição', split: 'Dividido', preview: 'Leitura' }))}
         ${row('Listas inteligentes', 'Enter continua listas, numeração e tarefas.', toggleCtl('smartLists'))}
         ${row('Fechar pares automaticamente', 'Parênteses, colchetes, aspas e crases.', toggleCtl('autoPair'))}
-        ${row('Corretor ortográfico', '', toggleCtl('spellcheck'))}
         ${IS_ANDROID ? '' : row('Carregar imagens da internet', 'Desligado, abrir uma nota não avisa nenhum site (evita rastreadores em notas recebidas).', toggleCtl('remoteImages'))}
         ${row('Atraso do salvamento automático', '', rangeCtl('autosaveDelay', 200, 3000, 100, FMT.autosaveDelay))}
+      </div>
+      <div class="set-group"><h4>Correção ao escrever</h4>
+        ${row('Corretor ortográfico', 'Português do Brasil, sem internet. Clique direito (ou toque) numa palavra sublinhada para ver sugestões.', toggleCtl('spellcheck'))}
+        ${row('Corrigir acentos automaticamente', 'Só quando não há dúvida: nao → não, voce → você. Backspace logo depois desfaz.', toggleCtl('spellAuto'))}
+        ${row('Maiúscula no início da frase', '', toggleCtl('typoCapitalize'))}
+        ${row('Espaços e pontuação', 'Tira o espaço antes de vírgula e ponto e junta espaços repetidos.', toggleCtl('typoSpaces'))}
+        ${row('Reticências e travessão', '... vira … e -- vira —', toggleCtl('typoPunct'))}
+        ${row('Aspas tipográficas', '" vira “ ” (fora de código).', toggleCtl('typoQuotes'))}
+        ${row('Dicionário pessoal', 'Palavras que você adicionou. Fica no cofre, em .minimal-note/dicionario.txt.', `<span class="val" id="dict-count">…</span><button class="btn" id="dict-edit">${icon('list', 15)}Ver palavras</button>`)}
+        <div id="dict-list" class="dict-list" hidden></div>
+      </div>
+      <div class="set-group"><h4>Revisão gramatical (LanguageTool)</h4>
+        ${row('Revisar vírgulas, crase e concordância', 'Use F7 ou o painel Revisão. O texto da nota é enviado ao servidor abaixo.', toggleCtl('ltEnabled'))}
+        ${row('Servidor', s.ltServer === 'custom' ? 'O seu servidor LanguageTool (ex.: http://localhost:8081).' : 'languagetool.org: grátis, com limite de uso por minuto e de tamanho do texto.', selectCtl('ltServer', { public: 'Público (languagetool.org)', custom: 'Servidor próprio' }))}
+        ${s.ltServer === 'custom' ? row('Endereço do servidor', 'https://… ou http:// só na sua rede.', `<input type="text" data-key="ltUrl" value="${esc(s.ltUrl)}" placeholder="http://localhost:8081">`) : ''}
       </div>`;
   } else if (curSection === 'vault') {
     c.innerHTML = `<h2>Cofre e arquivos</h2><p class="sub">Suas notas são arquivos .md comuns nesta pasta.</p>
@@ -135,10 +149,10 @@ function renderSection() {
     c.innerHTML = `<h2>CSS personalizado</h2><p class="sub">Ajuste qualquer detalhe. Variáveis úteis: <code>--accent</code>, <code>--bg</code>, <code>--text</code>, <code>--font-editor</code>, <code>--radius</code>.</p>
       <textarea class="css-editor" id="css-editor" spellcheck="false" placeholder=".markdown h1 { color: var(--accent); }\n.tree-item { font-size: 14px; }">${esc(s.customCss)}</textarea>`;
   } else if (curSection === 'keys') {
-    const keys = [['Nova nota', 'Ctrl N'], ['Paleta / abrir nota', 'Ctrl P'], ['Comandos', 'Ctrl Shift P'], ['Buscar no cofre', 'Ctrl Shift F'], ['Localizar na nota', 'Ctrl F'], ['Substituir na nota', 'Ctrl H'], ['Edição ↔ leitura', 'Ctrl E'], ['Modo dividido', 'Ctrl \\'], ['Grafo', 'Ctrl G'], ['Nota diária', 'Ctrl Shift D'], ['Fechar aba', 'Ctrl W'], ['Próxima aba', 'Ctrl Tab'], ['Salvar agora', 'Ctrl S'], ['Configurações', 'Ctrl ,'], ['Modo foco', 'F11'], ['Negrito / itálico', 'Ctrl B / Ctrl I'], ['Link', 'Ctrl K'], ['Tarefa', 'Ctrl L'], ['Riscado', 'Ctrl Shift X'], ['Destaque', 'Ctrl Shift H'], ['Indentar', 'Tab / Shift Tab'], ['Fonte maior / menor', 'Ctrl + / Ctrl −']];
+    const keys = [['Nova nota', 'Ctrl N'], ['Paleta / abrir nota', 'Ctrl P'], ['Comandos', 'Ctrl Shift P'], ['Buscar no cofre', 'Ctrl Shift F'], ['Localizar na nota', 'Ctrl F'], ['Substituir na nota', 'Ctrl H'], ['Revisar gramática', 'F7'], ['Edição ↔ leitura', 'Ctrl E'], ['Modo dividido', 'Ctrl \\'], ['Grafo', 'Ctrl G'], ['Nota diária', 'Ctrl Shift D'], ['Fechar aba', 'Ctrl W'], ['Próxima aba', 'Ctrl Tab'], ['Salvar agora', 'Ctrl S'], ['Configurações', 'Ctrl ,'], ['Modo foco', 'F11'], ['Negrito / itálico', 'Ctrl B / Ctrl I'], ['Link', 'Ctrl K'], ['Tarefa', 'Ctrl L'], ['Riscado', 'Ctrl Shift X'], ['Destaque', 'Ctrl Shift H'], ['Indentar', 'Tab / Shift Tab'], ['Fonte maior / menor', 'Ctrl + / Ctrl −']];
     c.innerHTML = `<h2>Atalhos</h2><p class="sub">Atalhos de teclado disponíveis.</p><div class="set-group">${keys.map(([a, k]) => row(a, '', `<kbd>${k}</kbd>`)).join('')}</div>`;
   } else {
-    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.6 · notas em Markdown, locais e suas.</p>
+    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.7 · notas em Markdown, locais e suas.</p>
       <p class="sub">${S.notes.size} notas · ${[...S.notes.values()].reduce((a, n) => a + n.words, 0).toLocaleString('pt-BR')} palavras no cofre</p></div>`;
   }
   bindSection();
@@ -156,7 +170,8 @@ function bindSection() {
       setSetting(key, v);
       const out = c.querySelector(`[data-val="${key}"]`);
       if (out) out.textContent = (FMT[key] || ((x) => x))(v);
-      if (key === 'spellcheck') editor.ta.spellcheck = v;
+      if (key === 'spellcheck') window.__lumenSpell?.sync();
+      if (key === 'ltServer') renderSection();
       if (key === 'remoteImages') lumen.settings.set(S.settings).then(renderPreview); // o bloqueio fica no processo principal
       if (key === 'sort') renderTree();
       requestAnimationFrame(() => editor.autosize());
@@ -203,6 +218,23 @@ function bindSection() {
   $('#set-switch', c)?.addEventListener('click', async () => { await chooseVault(); renderSection(); });
   $('#set-reveal', c)?.addEventListener('click', () => lumen.shell.reveal(''));
   $('#set-backup', c)?.addEventListener('click', backupVault);
+  if ($('#dict-count', c)) {
+    const SP = window.__lumenSpell;
+    const upd = () => {
+      const words = SP?.personal() || [], st = SP?.status() || {};
+      $('#dict-count', c).textContent = st.status === 'error' ? 'corretor indisponível' : `${words.length} ${words.length === 1 ? 'palavra' : 'palavras'}`;
+      const list = $('#dict-list', c);
+      list.innerHTML = words.length
+        ? words.map((w) => `<span class="dict-word">${esc(w)}<button title="Remover" data-word="${esc(w)}">${icon('x', 12)}</button></span>`).join('')
+        : '<span class="dict-empty">Nenhuma palavra ainda. Clique direito numa palavra sublinhada › Adicionar ao dicionário.</span>';
+    };
+    upd();
+    $('#dict-edit', c).addEventListener('click', () => { const l = $('#dict-list', c); l.hidden = !l.hidden; });
+    $('#dict-list', c).addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-word]');
+      if (b) { await SP?.removeWord(b.dataset.word); upd(); }
+    });
+  }
   if ($('#trash-count', c)) {
     const upd = async () => { const n = await lumen.vault.trashCount(); const el = $('#trash-count', c); if (el) el.textContent = n ? `${n} ${n > 1 ? 'itens' : 'item'}` : 'vazia'; $('#set-empty-trash', c).disabled = !n; };
     upd();

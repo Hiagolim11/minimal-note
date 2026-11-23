@@ -108,7 +108,8 @@
 
 ## No celular
 - Deslize da borda esquerda para abrir a lista de arquivos
-- A barra acima do teclado tem títulos, listas, tarefas, links, recuo, desfazer e ⌕ para localizar e substituir na nota
+- A barra acima do teclado tem títulos, listas, tarefas, links, recuo, desfazer, ⌕ para localizar e substituir e ✓ para revisar a gramática
+- Toque numa palavra sublinhada para ver sugestões ou adicioná-la ao dicionário
 - Em **Configurações → Cofre** você escolhe a pasta das notas e faz backup em .zip
 
 > [!note] Callouts
@@ -340,6 +341,28 @@ Voltar para [[Bem-vindo]].
     // URL que a WebView consegue carregar para imagens do cofre
     fileUrl: (rel) => Cap.convertFileSrc('file://' + abs(rel).split('/').map((p, i) => (i ? encodeURIComponent(p) : p)).join('/')),
     share: (title, text) => MN.share({ title, text }),
+    // revisão gramatical (LanguageTool): a conexão sai do código nativo (a CSP da página bloqueia)
+    lt: {
+      check: async (req) => {
+        const s = (typeof S !== 'undefined' && S.settings) || {};
+        if (s.ltEnabled !== true) throw new Error('A revisão gramatical está desligada');
+        const base = s.ltServer === 'custom'
+          ? String(s.ltUrl || '').trim().replace(/\/+$/, '').replace(/\/v2(\/check)?$/, '')
+          : 'https://api.languagetool.org';
+        const body = new URLSearchParams({ data: String(req?.data || ''), language: String(req?.language || 'pt-BR'), level: 'default' }).toString();
+        let r;
+        try { r = await MN.ltCheck({ base, body }); } catch (e) { throw new Error(errMsg(e)); }
+        if (r.status === 429) throw new Error('Limite do servidor atingido: espere um minuto e tente de novo');
+        if (r.status === 413) throw new Error('Texto grande demais para o servidor');
+        if (r.status < 200 || r.status >= 300) throw new Error(`O servidor de revisão respondeu ${r.status}`);
+        const json = JSON.parse(r.body || '{}');
+        return (json.matches || []).map((m) => ({
+          offset: m.offset, length: m.length, message: m.message, shortMessage: m.shortMessage,
+          replacements: (m.replacements || []).slice(0, 6).map((x) => x.value),
+          rule: { id: m.rule?.id, issueType: m.rule?.issueType, category: m.rule?.category?.name },
+        }));
+      },
+    },
     // textos/arquivos recebidos de outros apps e atalhos do ícone
     onIntent: (cb) => {
       MN.addListener('intent', (d) => cb(d));

@@ -382,6 +382,54 @@ public class MinimalNotePlugin extends Plugin {
     // ---------------- compartilhar / imprimir ----------------
 
     @PluginMethod
+    public void ltCheck(PluginCall call) {
+        // revisão gramatical: POST para o LanguageTool (https, ou http só na rede local)
+        String base = call.getString("base", "");
+        String body = call.getString("body", "");
+        Uri u = Uri.parse(base);
+        String host = u.getHost() == null ? "" : u.getHost();
+        boolean local = host.matches("(?i)localhost|127\\.\\d+\\.\\d+\\.\\d+|10\\.\\d+\\.\\d+\\.\\d+|192\\.168\\.\\d+\\.\\d+|172\\.(1[6-9]|2\\d|3[01])\\.\\d+\\.\\d+|[\\w-]+\\.local");
+        if (!("https".equals(u.getScheme()) || ("http".equals(u.getScheme()) && local)) || body.isEmpty() || body.length() > 400000) {
+            call.reject("Endereço do servidor de revisão inválido");
+            return;
+        }
+        new Thread(() -> {
+            java.net.HttpURLConnection c = null;
+            try {
+                c = (java.net.HttpURLConnection) new java.net.URL(base.replaceAll("/+$", "") + "/v2/check").openConnection();
+                c.setRequestMethod("POST");
+                c.setConnectTimeout(15000);
+                c.setReadTimeout(30000);
+                c.setDoOutput(true);
+                c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
+                c.setRequestProperty("Accept", "application/json");
+                try (java.io.OutputStream os = c.getOutputStream()) { os.write(body.getBytes(StandardCharsets.UTF_8)); }
+                int code = c.getResponseCode();
+                InputStream in = code >= 400 ? c.getErrorStream() : c.getInputStream();
+                String text = "";
+                if (in != null) {
+                    ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                    byte[] buf = new byte[16384];
+                    int n;
+                    while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                    in.close();
+                    text = new String(bo.toByteArray(), StandardCharsets.UTF_8);
+                }
+                JSObject r = new JSObject();
+                r.put("status", code);
+                r.put("body", text);
+                call.resolve(r);
+            } catch (java.net.SocketTimeoutException e) {
+                call.reject("O servidor demorou demais para responder");
+            } catch (Exception e) {
+                call.reject("Sem conexão com o servidor de revisão");
+            } finally {
+                if (c != null) c.disconnect();
+            }
+        }).start();
+    }
+
+    @PluginMethod
     public void share(PluginCall call) {
         String title = call.getString("title", "");
         Intent s = new Intent(Intent.ACTION_SEND);

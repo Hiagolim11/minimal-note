@@ -103,7 +103,15 @@ const DEFAULT_SETTINGS = {
   fxClickBurst: false,
   workspaceOpacity: 88,  // transparência da área de escrita (deixa o fundo aparecer)
   defaultMode: 'edit',
-  spellcheck: true,
+  spellcheck: true,      // corretor ortográfico pt-BR (Hunspell, sem internet)
+  spellAuto: true,       // corrige acentos óbvios ao digitar (nao → não)
+  typoCapitalize: true,  // maiúscula no início da frase
+  typoSpaces: true,      // espaço antes de pontuação e espaços repetidos
+  typoPunct: true,       // ... → …  e  -- → —
+  typoQuotes: false,     // aspas tipográficas “ ”
+  ltEnabled: false,      // revisão gramatical (LanguageTool) — envia o texto ao servidor
+  ltServer: 'public',    // public | custom
+  ltUrl: '',
   remoteImages: false, // imagens da internet nas notas (desligado: nada é baixado ao abrir uma nota)
   autosaveDelay: 600,
   smartLists: true,

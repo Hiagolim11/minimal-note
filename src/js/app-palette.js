@@ -54,6 +54,8 @@ const COMMANDS = [
   { id: 'search', name: 'Buscar no cofre', icon: 'search', key: 'Ctrl Shift F', run: () => { showLeftPanel('search'); $('#search-input').focus(); } },
   { id: 'find', name: 'Localizar na nota', icon: 'search', key: 'Ctrl F', run: () => window.__lumenFind?.open() },
   { id: 'replace', name: 'Substituir na nota', icon: 'search', key: 'Ctrl H', run: () => window.__lumenFind?.open(true) },
+  { id: 'review', name: 'Revisar gramática e pontuação (LanguageTool)', icon: 'check', key: 'F7', run: () => window.__lumenReview?.run() },
+  { id: 'spell-toggle', name: 'Ligar/desligar corretor ortográfico', icon: 'type', run: () => { setSetting('spellcheck', !S.settings.spellcheck); window.__lumenSpell?.sync(); toast(S.settings.spellcheck ? 'Corretor ligado' : 'Corretor desligado'); } },
   { id: 'toggle-mode', name: 'Alternar edição / leitura', icon: 'eye', key: 'Ctrl E', run: () => toggleMode() },
   { id: 'split', name: 'Modo dividido', icon: 'columns', key: 'Ctrl \\', run: () => setMode(activeTab()?.mode === 'split' ? 'edit' : 'split') },
   { id: 'toggle-left', name: 'Alternar barra lateral esquerda', icon: 'panelLeft', run: () => toggleSide('left') },

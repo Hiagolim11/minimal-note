@@ -177,6 +177,7 @@ const SHORTCUTS = `| Ação | Atalho |
 | Paleta de comandos | Ctrl + P |
 | Busca no cofre | Ctrl + Shift + F |
 | Localizar / substituir na nota | Ctrl + F / Ctrl + H |
+| Revisar gramática e pontuação | F7 |
 | Alternar edição / leitura | Ctrl + E |
 | Modo dividido | Ctrl + \\\\ |
 | Grafo | Ctrl + G |
@@ -276,6 +277,48 @@ handle('settings:set', async (data) => {
   settings = { ...data, vaultPath: settings.vaultPath, windowBounds: settings.windowBounds };
   await saveSettings();
   return true;
+});
+
+// ---------- revisão gramatical (LanguageTool) ----------
+// O endereço vem das configurações salvas (nunca do renderer): servidor público ou um servidor
+// próprio (https, ou http só em localhost / rede local).
+const LT_PUBLIC = 'https://api.languagetool.org';
+function ltBase() {
+  if (settings.ltEnabled !== true) throw new Error('A revisão gramatical está desligada');
+  if (settings.ltServer !== 'custom') return LT_PUBLIC;
+  let u;
+  try { u = new URL(String(settings.ltUrl || '').trim()); } catch { throw new Error('Endereço do servidor LanguageTool inválido'); }
+  const local = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[\w-]+\.local)$/i.test(u.hostname);
+  if (!(u.protocol === 'https:' || (u.protocol === 'http:' && local))) throw new Error('Use https:// (ou http:// só para um servidor na sua rede)');
+  return u.origin + u.pathname.replace(/\/+$/, '').replace(/\/v2(\/check)?$/, '');
+}
+handle('lt:check', async (req) => {
+  const base = ltBase();
+  const data = String(req?.data || '');
+  if (!data || data.length > 200000) throw new Error('Texto vazio ou grande demais');
+  const body = new URLSearchParams({ data, language: String(req?.language || 'pt-BR'), level: 'default' });
+  // sessão separada: a padrão bloqueia http(s) quando "imagens da internet" está desligado
+  const ses = session.fromPartition('languagetool');
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 30000);
+  let r;
+  try {
+    r = await ses.fetch(base + '/v2/check', {
+      method: 'POST', body: body.toString(), signal: ctl.signal,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    });
+  } catch (e) {
+    throw new Error(ctl.signal.aborted ? 'O servidor demorou demais para responder' : 'Sem conexão com o servidor de revisão');
+  } finally { clearTimeout(timer); }
+  if (r.status === 429) throw new Error('Limite do servidor atingido: espere um minuto e tente de novo');
+  if (r.status === 413) throw new Error('Texto grande demais para o servidor');
+  if (!r.ok) throw new Error(`O servidor de revisão respondeu ${r.status}`);
+  const json = await r.json();
+  return (json.matches || []).map((m) => ({
+    offset: m.offset, length: m.length, message: m.message, shortMessage: m.shortMessage,
+    replacements: (m.replacements || []).slice(0, 6).map((x) => x.value),
+    rule: { id: m.rule?.id, issueType: m.rule?.issueType, category: m.rule?.category?.name },
+  }));
 });
 
 handle('vault:open', async (dir) => {

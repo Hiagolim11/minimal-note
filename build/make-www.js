@@ -12,6 +12,8 @@ const src = path.join(root, 'src');
 const out = path.join(root, 'www');
 const nm = path.join(root, 'node_modules');
 
+// corretor ortográfico (src/vendor/spell) antes de copiar a interface
+require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'make-spell.js')], { stdio: 'inherit' });
 fs.rmSync(out, { recursive: true, force: true });
 fs.cpSync(src, out, { recursive: true });
 

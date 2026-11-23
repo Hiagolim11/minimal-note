@@ -1,7 +1,7 @@
 {
   "name": "minimal-note",
   "productName": "Minimal Note",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "App de notas em Markdown inspirado no Obsidian — moderno, estilizado e personalizável.",
   "main": "main.js",
   "author": {
@@ -21,7 +21,12 @@
     "android:sync": "npm run android:www && cap sync android",
     "android:apk": "npm run android:sync && cd android && (gradlew assembleRelease || sh gradlew assembleRelease)",
     "test": "node --test test/unit/*.test.js",
-    "test:e2e": "bash test/e2e/all.sh"
+    "test:e2e": "bash test/e2e/all.sh",
+    "spell": "node build/make-spell.js",
+    "prestart": "node build/make-spell.js",
+    "predist:win": "node build/make-spell.js",
+    "prebuild:linux-dir": "node build/make-spell.js",
+    "postinstall": "node build/make-spell.js"
   },
   "license": "MIT",
   "dependencies": {
@@ -38,8 +43,10 @@
     "@capacitor/cli": "^7.6.10",
     "@capacitor/core": "^7.6.10",
     "@capacitor/filesystem": "^7.1.9",
+    "dictionary-pt": "^4.0.0",
     "electron": "^45.4.1",
-    "electron-builder": "^26.18.0"
+    "electron-builder": "^26.18.0",
+    "hunspell-asm": "^4.0.2"
   },
   "build": {
     "appId": "com.minimalnote.app",

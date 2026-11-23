@@ -111,3 +111,16 @@
 .editor-find:empty { display: none; }
 .editor-find mark { color: transparent; background: color-mix(in srgb, var(--highlight, #facc15) 34%, transparent); border-radius: 2px; }
 .editor-find mark.cur { background: color-mix(in srgb, var(--accent) 45%, transparent); box-shadow: 0 0 0 1.5px var(--accent); }
+
+/* corretor: camada com o mesmo texto do editor; só o sublinhado aparece */
+.editor-spell {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0; color: transparent;
+  font-family: var(--font-editor); font-size: var(--font-size); line-height: var(--line-height);
+  white-space: pre-wrap; overflow-wrap: break-word; tab-size: 4; overflow: hidden;
+}
+.editor-spell:empty { display: none; }
+.editor-spell span { color: transparent; text-decoration-line: underline; text-decoration-style: wavy; text-decoration-skip-ink: none;
+  text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+.editor-spell .sp-sp { text-decoration-color: #e5484d; }
+.editor-spell .sp-gr { text-decoration-color: #3b82f6; text-decoration-style: solid; text-decoration-thickness: 2px;
+  background: color-mix(in srgb, #3b82f6 10%, transparent); border-radius: 2px; }

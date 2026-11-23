@@ -10,6 +10,8 @@ App de notas em Markdown, local e personalizável, inspirado no Obsidian — fei
 - **Links `[[wiki]]`** com autocompletar, backlinks e renomeação que atualiza os links
 - **Grafo** interativo das notas, tags e links não criados
 - **Editor, leitura e modo dividido**, com listas inteligentes, atalhos de formatação, colagem de imagens e localizar/substituir na nota
+- **Corretor em português** (sem internet): sublinha erros de ortografia com sugestões no clique direito (ou toque), dicionário pessoal guardado no cofre, correção automática de acentos óbvios (`nao` → `não`; Backspace desfaz) e ajustes de digitação (maiúscula no início da frase, espaço antes de vírgula, `...` → `…`, `--` → `—`, aspas tipográficas opcionais). Ignora código, links, tags e endereços
+- **Revisão gramatical** opcional com o [LanguageTool](https://languagetool.org) (`F7`): vírgulas, crase, concordância e regência, com painel de sugestões. Desligada por padrão; usa o servidor público (o texto da nota é enviado a languagetool.org) ou um servidor próprio
 - **Callouts** (`> [!tip]`), tarefas clicáveis, tabelas, destaques `==texto==`, frontmatter YAML
 - **Busca** em todo o cofre, painel de tags, sumário, nota diária e paleta de comandos (`Ctrl+P`)
 - **11 temas**, cor de destaque, cores do tema editáveis, fontes, tamanhos, efeitos de vidro e fundo animado
@@ -30,7 +32,7 @@ npm start
 ## Testes
 
 ```bash
-npm test           # testes unitários (temas, Markdown)
+npm test           # testes unitários (temas, Markdown, corretor com o Hunspell de verdade)
 npm run test:e2e   # abre o app num cofre temporário e roda os roteiros de test/e2e (Linux, precisa de tela ou xvfb-run)
 ```
 
@@ -46,7 +48,7 @@ O `.deb` é montado por `build/make-deb.js` a partir de `dist/linux-unpacked`, e
 Instalar no Linux (Debian/Ubuntu):
 
 ```bash
-sudo apt install ./dist/minimal-note_1.6.0_amd64.deb
+sudo apt install ./dist/minimal-note_1.7.0_amd64.deb
 ```
 
 
@@ -90,11 +92,19 @@ Sem esse arquivo o APK de release sai sem assinatura (use `gradlew assembleDebug
 | Paleta / abrir nota | `Ctrl+P` |
 | Comandos | `Ctrl+Shift+P` |
 | Localizar / substituir na nota | `Ctrl+F` / `Ctrl+H` |
+| Revisar gramática (LanguageTool) | `F7` |
 | Edição ↔ leitura | `Ctrl+E` |
 | Modo dividido | `Ctrl+\` |
 | Grafo | `Ctrl+G` |
 | Nota diária | `Ctrl+Shift+D` |
 | Configurações | `Ctrl+,` |
+
+## Corretor ortográfico
+
+- `build/make-spell.js` (roda sozinho no `npm install`, `npm start`, nas builds e no `www/`) gera `src/vendor/spell/`: o Hunspell em WebAssembly (`hunspell-asm`) e o dicionário VERO pt-BR (`dictionary-pt`) como script, para o worker `src/js/spell-worker.js` carregar sem rede
+- As regras de texto (o que ignorar no Markdown, correção automática, ajustes de digitação, divisão para o LanguageTool) ficam em `src/js/spell-text.js`, testadas em `test/unit/spell.test.js`
+- A revisão gramatical sai pelo processo principal (Electron) ou pelo plugin nativo (Android); o endereço do servidor vem das configurações e precisa ser `https://` (ou `http://` só na rede local)
+- O dicionário VERO é distribuído sob LGPL-3.0 ou MPL-2.0 (licença em `src/vendor/spell/LICENSE-dictionary-pt.txt`)
 
 ## Licença
 

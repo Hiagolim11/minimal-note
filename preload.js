@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('lumen', {
     exportHtml: (name, html) => call('fs:exportHtml', name, html),
     exportPdf: (name) => call('fs:exportPdf', name),
   },
+  lt: {
+    check: (req) => call('lt:check', req),
+  },
   shell: {
     reveal: (p) => call('shell:reveal', p),
     external: (url) => call('shell:external', url),
