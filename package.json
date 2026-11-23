@@ -1,7 +1,7 @@
 {
   "name": "minimal-note",
   "productName": "Minimal Note",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "App de notas em Markdown inspirado no Obsidian — moderno, estilizado e personalizável.",
   "main": "main.js",
   "author": {

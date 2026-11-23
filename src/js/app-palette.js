@@ -30,11 +30,15 @@ function updateGraph() {
   }
   const nodes = [], edges = [], ids = new Set();
   const deg = new Map();
-  for (const n of S.notes.values()) {
+  // notas da pasta de modelos não entram no grafo (não são notas de verdade)
+  const tplDir = (S.settings.templatesFolder || 'Modelos') + '/';
+  const graphNotes = [...S.notes.values()].filter((n) => !n.path.startsWith(tplDir));
+  const isTpl = (id) => typeof id === 'string' && id.startsWith(tplDir);
+  for (const n of graphNotes) {
     for (const l of n.links) {
       const r = resolveLink(l, n.path);
       const id = r || (g.ghosts ? 'ghost:' + l.toLowerCase() : null);
-      if (!id) continue;
+      if (!id || isTpl(id)) continue;
       edges.push([n.path, id]);
       deg.set(n.path, (deg.get(n.path) || 0) + 1);
       deg.set(id, (deg.get(id) || 0) + 1);
@@ -47,7 +51,7 @@ function updateGraph() {
       if (!ids.has(id)) { ids.add(id); nodes.push({ id, label: '#' + t, kind: 'tag' }); }
     }
   }
-  for (const n of S.notes.values()) {
+  for (const n of graphNotes) {
     if (!g.orphans && !deg.get(n.path)) continue;
     nodes.push({ id: n.path, label: n.name, kind: 'note', ctime: n.ctime, tags: n.tags });
   }
@@ -55,7 +59,7 @@ function updateGraph() {
   S.graph.readColors();
   S.graph.setData({ nodes, edges });
   requestAnimationFrame(() => S.graph.resize());
-  $('#graph-stats').textContent = `${S.notes.size} notas · ${edges.length} conexões`;
+  $('#graph-stats').textContent = `${graphNotes.length} notas · ${edges.length} conexões`;
 }
 
 // ---------- paleta de comandos ----------

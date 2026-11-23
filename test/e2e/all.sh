@@ -50,4 +50,6 @@ out=$(bash test/e2e/run.sh test/e2e/brain-tools.js)
 check brain-tools "$out" 'meio: 22 visíveis' 'fim: 42 · hoje' 'terminou: 42 visíveis' 'foco: 5 visíveis · salvo true' 'sem foco: 42' 'fora do lobo: 0' 'rede esconde: none'
 out=$(bash test/e2e/run.sh test/e2e/protect.js)
 check protect "$out" '{\"cifrado\":true,\"vazou\":false,\"naTela\":true}' 'Nova linha secreta' '\"bloqueadas\":1,\"tela\":true,\"somenteLeitura\":true,\"busca\":\"0 nota(s)\"' 'errada: Senha incorreta' '{\"aberta\":true,\"texto\":true}' '{\"novoCifrado\":true,\"vazou\":false}' 'cópias: 1' '{\"cifrado\":false,\"texto\":true}' '{\"a\":true,\"b\":true}' '{\"aAberta\":true,\"texto\":\"nota a\"}'
+out=$(bash test/e2e/run.sh test/e2e/templates-seed.js)
+check templates-seed "$out" '\"modelos\":[\"Diário\",\"Leitura\",\"Projeto\",\"Reunião\"],\"marcado\":true,\"avisos\":[]' '{\"noGrafo\":0' 'depois de apagar e reabrir: 0'
 exit $fail

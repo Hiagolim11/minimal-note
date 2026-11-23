@@ -43,12 +43,32 @@ const Templates = (() => {
   const folder = () => (typeof S !== 'undefined' && S.settings.templatesFolder) || 'Modelos';
   const list = () => [...S.notes.values()].filter((n) => n.path.startsWith(folder() + '/')).sort((a, b) => a.name.localeCompare(b.name, 'pt'));
 
-  async function ensureDefaults() {
-    if (list().length) return;
+  async function ensureDefaults({ silent = false } = {}) {
+    if (list().length) return false;
     for (const [name, body] of Object.entries(DEFAULTS)) await lumen.fs.write(`${folder()}/${name}.md`, body);
     await refreshVault();
-    toast(`Criei 4 modelos de exemplo na pasta “${folder()}”`, 'success', 3200);
+    if (!silent) toast(`Criei 4 modelos de exemplo na pasta “${folder()}”`, 'success', 3200);
+    return true;
   }
+
+  // na primeira abertura de cada cofre já cria os modelos de exemplo (uma vez só:
+  // se o usuário apagar a pasta depois, ela não volta)
+  async function seedOnce() {
+    const root = S.vault?.root; if (!root) return;
+    const done = Array.isArray(S.settings.templatesSeeded) ? S.settings.templatesSeeded : [];
+    if (done.includes(root)) return;
+    try {
+      await ensureDefaults({ silent: true });
+      S.settings.templatesSeeded = [...done, root].slice(-50);
+      saveSettings();
+    } catch { /* tenta de novo na próxima abertura */ }
+  }
+  const origOpenVault = openVault;
+  openVault = async function (...args) {
+    const r = await origOpenVault(...args);
+    await seedOnce();
+    return r;
+  };
 
   // nova nota a partir de um modelo (escolhido na paleta)
   async function newFromTemplate() {

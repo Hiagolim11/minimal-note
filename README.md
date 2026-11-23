@@ -14,7 +14,7 @@ App de notas em Markdown, local e personalizável, inspirado no Obsidian — fei
 - **Revisão gramatical** opcional com o [LanguageTool](https://languagetool.org) (`F7`): vírgulas, crase, concordância e regência, com painel de sugestões. Desligada por padrão; usa o servidor público (o texto da nota é enviado a languagetool.org) ou um servidor próprio
 - **Callouts** (`> [!tip]`), tarefas clicáveis, tabelas, destaques `==texto==`, frontmatter YAML
 - **Busca inteligente** em todo o cofre: sem acento, com erro de digitação (`exenplo` acha `exemplo`), frases exatas e filtros (`tag:`, `pasta:`, `tarefa:pendente`, `editada:semana`, `criada:2026-11`, `-excluir`), com o trecho encontrado em cada nota
-- **Modelos de nota** (`Ctrl+Shift+N`): notas da pasta `Modelos` com `{{título}}`, `{{data}}`, `{{hora}}`, `{{cursor}}`…; a nota diária usa o modelo “Diário”
+- **Modelos de nota** (`Ctrl+Shift+N`): notas da pasta `Modelos` (4 modelos de exemplo criados na primeira abertura do cofre) com `{{título}}`, `{{data}}`, `{{hora}}`, `{{cursor}}`…; a nota diária usa o modelo “Diário”
 - **Painel de tarefas**: todas as `- [ ]` do cofre, com datas (`📅 2026-12-01` ou digite `@hoje`, `@amanhã`, `@sexta`), filtros (hoje, atrasadas, próximos 7 dias…) e lembrete do sistema
 - **Sugestões de links**: menções a outras notas sem `[[ ]]`, notas que citam a atual sem link e notas parecidas, com botão para ligar
 - **Captura rápida**: `Ctrl+Alt+N` em qualquer programa abre uma janelinha que salva na “Caixa de entrada”; no Android, widget na tela inicial
@@ -55,7 +55,7 @@ O `.deb` é montado por `build/make-deb.js` a partir de `dist/linux-unpacked`, e
 Instalar no Linux (Debian/Ubuntu):
 
 ```bash
-sudo apt install ./dist/minimal-note_1.9.0_amd64.deb
+sudo apt install ./dist/minimal-note_1.9.1_amd64.deb
 ```
 
 
