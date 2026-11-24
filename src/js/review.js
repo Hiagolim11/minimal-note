@@ -56,6 +56,17 @@
     if (!note) { toast?.('Abra uma nota para revisar'); return; }
     if (state.running) return;
     if (!(await ensureEnabled())) return;
+    // nota protegida: o texto sai sem cifra para o servidor; o "sim" geral da revisão não vale para ela
+    // (Protect é um const global, não fica em window)
+    if (typeof Protect !== 'undefined' && Protect.isProtected(note.path)) {
+      const where = st().ltServer === 'custom' ? `o servidor ${st().ltUrl || 'próprio'}` : 'languagetool.org';
+      const ok = await dialog({
+        title: 'Revisar nota protegida?',
+        msg: `“${note.name}” é protegida por senha. Para revisar, o texto vai sem cifra para ${where}.`,
+        ok: 'Enviar e revisar', cancel: 'Cancelar', danger: true,
+      });
+      if (!ok) return;
+    }
     await window.lumen.settings.set(S.settings).catch(() => {}); // o processo principal lê o servidor daqui
     const text = ta.value;
     if (!text.trim()) { toast?.('A nota está vazia'); return; }

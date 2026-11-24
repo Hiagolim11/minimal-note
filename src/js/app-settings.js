@@ -142,7 +142,9 @@ function renderSection() {
           ? row('Cofre atual', esc(S.vault?.root || '') + (S.vault?.kind === 'app' ? ' — pasta privada: é apagada se o app for desinstalado. Faça backups ou escolha uma pasta do aparelho.' : ''), `<button class="btn primary" id="set-switch">${icon('vault', 15)}Escolher pasta</button>`)
             + row('Backup', 'Gera um .zip com todas as notas e anexos para salvar no Drive, enviar por e-mail etc.', `<button class="btn" id="set-backup">${icon('download', 15)}Fazer backup (.zip)</button>`)
             + row('Lixeira do cofre', 'Notas excluídas ficam na pasta .lixeira até você esvaziá-la.', `<span class="val" id="trash-count">…</span><button class="btn" id="set-empty-trash">${icon('trash', 15)}Esvaziar</button>`)
-          : row('Cofre atual', esc(S.vault?.root || ''), `<button class="btn" id="set-reveal">${icon('external', 15)}Abrir pasta</button><button class="btn primary" id="set-switch">${icon('vault', 15)}Trocar</button>`)}
+          : row('Cofre atual', esc(S.vault?.root || ''), `<button class="btn" id="set-reveal">${icon('external', 15)}Abrir pasta</button><button class="btn primary" id="set-switch">${icon('vault', 15)}Trocar</button>`)
+            // só aparece quando algo foi para a .lixeira do cofre (local sem lixeira do sistema)
+            + row('Lixeira do cofre', 'Itens excluídos onde não há lixeira do sistema (pendrive, rede…) ficam na pasta .lixeira do cofre.', `<span class="val" id="trash-count">…</span><button class="btn" id="set-empty-trash">${icon('trash', 15)}Esvaziar</button>`)}
         ${row('Pasta para novas notas', 'Vazio = raiz do cofre.', `<input type="text" data-key="newNoteFolder" value="${esc(s.newNoteFolder)}" placeholder="(raiz)">`)}
         ${row('Pasta de anexos', 'Onde imagens coladas são salvas.', `<input type="text" data-key="attachmentsFolder" value="${esc(s.attachmentsFolder)}">`)}
         ${row('Pasta das notas diárias', '', `<input type="text" data-key="dailyFolder" value="${esc(s.dailyFolder)}">`)}
@@ -242,7 +244,11 @@ function bindSection() {
     });
   }
   if ($('#trash-count', c)) {
-    const upd = async () => { const n = await lumen.vault.trashCount(); const el = $('#trash-count', c); if (el) el.textContent = n ? `${n} ${n > 1 ? 'itens' : 'item'}` : 'vazia'; $('#set-empty-trash', c).disabled = !n; };
+    const upd = async () => {
+      const n = await lumen.vault.trashCount(); const el = $('#trash-count', c); if (!el) return;
+      el.textContent = n ? `${n} ${n > 1 ? 'itens' : 'item'}` : 'vazia'; $('#set-empty-trash', c).disabled = !n;
+      if (!IS_ANDROID) el.closest('.set-row').hidden = !n;
+    };
     upd();
     $('#set-empty-trash', c).addEventListener('click', async () => {
       if (!await confirmBox('Esvaziar lixeira?', 'Os itens da pasta .lixeira serão apagados de vez. Isso não pode ser desfeito.', 'Esvaziar')) return;

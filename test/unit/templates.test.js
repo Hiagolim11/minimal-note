@@ -2,7 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const load = require('./load');
 
-const { Templates: T } = load(['src/js/templates.js'], { document: { addEventListener() {} } });
+// templates.js envolve o openVault do app (cria os modelos na 1ª abertura do cofre): aqui basta um stub
+const { Templates: T } = load(['src/js/templates.js'], { document: { addEventListener() {} }, openVault: async () => {} });
 const D = new Date(2026, 10, 23, 9, 5); // segunda-feira, 23/11/2026 09:05
 
 test('espaços automáticos: título, datas, hora, dia da semana, cursor', () => {

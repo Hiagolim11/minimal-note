@@ -38,7 +38,7 @@ out=$(bash test/e2e/run.sh test/e2e/find.js)
 check find "$out" '\"count\":\"1/6\",\"marks\":6' '\"sel\":\"Gato\"' 'volta ao fim: 6/6' 'maiúsculas: 5/5' '{\"left\":0,\"caes\":6,\"count\":\"Nenhuma\",\"saved\":true}' 'desfazer: 5' '{\"closed\":true,\"focus\":\"editor\",\"marks\":0}' '{\"mode\":\"edit\",\"open\":true}'
 grep -qE 'desalinhamento das marcas=0\.[0-4]' <<<"$out" || { echo "✖ find: marcas desalinhadas do texto"; fail=1; }
 out=$(bash test/e2e/run.sh test/e2e/spell.js 'node test/e2e/lt-server.js')
-check spell "$out" 'corretor: ready' 'erros: [\"nao\",\"exenplo\",\"Hiago\"]' 'desalinhamento=0.00' 'digitado: \"Hoje você vai \"' 'auto: \"vai não \"' 'desfeito: \"vai nao \"' 'virgula: \" Fim,\"' 'reticencias: \" e isso…\"' 'espacos: \"… um b\"' 'depois: [\"Informação\"]' '{\"open\":true,\"sugs\":[\"exemplo\"]}' '{\"fixed\":true,\"closed\":true}' '{\"file\":\"Hiago\n\",\"underlined\":false}' '[\"a\",\"Crase\",[\"à\"]],[\"a\",\"Crase\",[\"à\"]]' '\"linha\":\"Fui à praia ontem. Depois, Fui a praia de novo.\",\"restam\":1' '{\"trecho\":\"Fui a praia\",\"s\":43}' '{\"dialog\":true,\"title\":\"Revisão gramatical\"}' '{\"ltEnabled\":false}' 'código como texto: false'
+check spell "$out" 'corretor: ready' 'erros: [\"nao\",\"exenplo\",\"Hiago\"]' 'desalinhamento=0.00' 'digitado: \"Hoje você vai \"' 'auto: \"vai não \"' 'desfeito: \"vai nao \"' 'virgula: \" Fim,\"' 'reticencias: \" e isso…\"' 'espacos: \"… um b\"' 'depois: [\"Informação\"]' '{\"open\":true,\"sugs\":[\"exemplo\"]}' '{\"fixed\":true,\"closed\":true}' '{\"file\":\"Hiago\\n\",\"underlined\":false}' '[\"a\",\"Crase\",[\"à\"]],[\"a\",\"Crase\",[\"à\"]]' '\"linha\":\"Fui à praia ontem. Depois, Fui a praia de novo.\",\"restam\":1' '{\"trecho\":\"Fui a praia\",\"s\":43}' '{\"dialog\":true,\"title\":\"Revisão gramatical\"}' '{\"ltEnabled\":false}' 'código como texto: false'
 out=$(bash test/e2e/run.sh test/e2e/brain.js)
 check brain "$out" '"classe\":\"BrainView\",\"modo\":\"2d\"' 'fora do lobo (2D): 0' '{\"aba\":\"Diário/Nota 2.md\",\"tipo\":\"note\"}' '\"modo\":\"3d\",\"mesma\":\"BrainView\"' 'fora do lobo (3D): 0' 'girou: true' '{\"aba\":\"Ideias/Nota 3.md\"}' '{\"estilo\":\"net\",\"classe\":\"GraphView\",\"brainClass\":false,\"canvases\":1}' '{\"classe\":\"BrainView\",\"canvases\":1}' 'erros: []'
 out=$(bash test/e2e/run.sh test/e2e/features.js)
@@ -52,4 +52,8 @@ out=$(bash test/e2e/run.sh test/e2e/protect.js)
 check protect "$out" '{\"cifrado\":true,\"vazou\":false,\"naTela\":true}' 'Nova linha secreta' '\"bloqueadas\":1,\"tela\":true,\"somenteLeitura\":true,\"busca\":\"0 nota(s)\"' 'errada: Senha incorreta' '{\"aberta\":true,\"texto\":true}' '{\"novoCifrado\":true,\"vazou\":false}' 'cópias: 1' '{\"cifrado\":false,\"texto\":true}' '{\"a\":true,\"b\":true}' '{\"aAberta\":true,\"texto\":\"nota a\"}'
 out=$(bash test/e2e/run.sh test/e2e/templates-seed.js)
 check templates-seed "$out" '\"modelos\":[\"Diário\",\"Leitura\",\"Projeto\",\"Reunião\"],\"marcado\":true,\"avisos\":[]' '{\"noGrafo\":0' 'depois de apagar e reabrir: 0'
+out=$(bash test/e2e/run.sh test/e2e/protect-review.js 'node test/e2e/lt-server.js')
+check protect-review "$out" 'protegida: true' '{\"aberto\":true,\"titulo\":\"Revisar nota protegida?\"}' 'lt-server: 1 pedidos'
+out=$(bash test/e2e/run.sh test/e2e/trash.js)
+check trash "$out" '\"onde\":[\"vault\",\"vault\"],\"naLixeira\":2,\"naArvore\":false,\"notas\":[]' '{\"linha\":true,\"texto\":\"2 itens\"}' 'depois de esvaziar: 0' 'linha visível com lixeira vazia: false'
 exit $fail

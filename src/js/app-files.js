@@ -109,9 +109,9 @@ async function deletePath(path, isFolder) {
   if (!ok) return;
   try {
     for (const t of [...S.tabs]) if (t.kind === 'note' && (t.path === path || t.path.startsWith(path + '/'))) { S.pending.delete(t.path); closeTab(t.id, true); }
-    await lumen.fs.remove(path);
+    const where = await lumen.fs.remove(path);
     await refreshVault();
-    toast('Movido para a lixeira', 'success');
+    toast(where === 'vault' ? 'Movido para a pasta .lixeira do cofre (sem lixeira do sistema neste local)' : 'Movido para a lixeira', 'success', where === 'vault' ? 4000 : 2500);
   } catch (err) { toast(err.message, 'error'); }
 }
 

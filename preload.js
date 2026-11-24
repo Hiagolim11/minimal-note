@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('lumen', {
   vault: {
     open: (dir) => call('vault:open', dir),
     choose: () => call('vault:choose'),
+    trashCount: () => call('vault:trashCount'),
+    emptyTrash: () => call('vault:emptyTrash'),
     onChange: (cb) => ipcRenderer.on('vault:changed', () => cb()),
   },
   fs: {

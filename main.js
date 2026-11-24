@@ -437,7 +437,28 @@ handle('fs:delete', async (rel) => {
   const abs = resolveInVault(rel);
   if (abs === path.resolve(vaultRoot)) throw new Error('Não é possível apagar o cofre');
   markSelf(abs);
-  await shell.trashItem(abs); // vai para a lixeira, recuperável
+  try {
+    await shell.trashItem(abs); // vai para a lixeira, recuperável
+    return 'system';
+  } catch {
+    // pendrive, rede, outra partição…: sem lixeira do sistema. Como no Android, vai para a pasta
+    // .lixeira do cofre (recuperável) em vez de impedir a exclusão
+    const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    // nome livre: dois itens de mesmo nome apagados no mesmo segundo não podem se sobrescrever
+    let dest = path.join(path.resolve(vaultRoot), VAULT_TRASH, `${stamp} ${path.basename(abs)}`);
+    for (let i = 2; await exists(dest); i++) dest = path.join(path.resolve(vaultRoot), VAULT_TRASH, `${stamp} (${i}) ${path.basename(abs)}`);
+    await fs.mkdir(path.dirname(dest), { recursive: true });
+    markSelf(dest);
+    await fs.rename(abs, dest);
+    return 'vault';
+  }
+});
+const VAULT_TRASH = '.lixeira';
+handle('vault:trashCount', async () => {
+  try { return (await fs.readdir(resolveInVault(VAULT_TRASH))).length; } catch { return 0; }
+});
+handle('vault:emptyTrash', async () => {
+  await fs.rm(resolveInVault(VAULT_TRASH), { recursive: true, force: true });
   return true;
 });
 
@@ -523,6 +544,10 @@ async function runTestScript() {
     await wait(60);
   };
   await wait(2500);
+  // a página age como focada mesmo se o gerenciador de janelas não der o foco à janela de teste
+  // (sem isso, blur/focus não disparam e o resultado muda de uma execução para outra)
+  if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
+  await wc.debugger.sendCommand('Emulation.setFocusEmulationEnabled', { enabled: true });
   for (const step of script) {
     if (step.size) win.setSize(step.size[0], step.size[1]);
     if (step.media !== undefined) {
