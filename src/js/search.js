@@ -151,7 +151,7 @@ const SmartSearch = (() => {
     }));
   }
 
-  const api = { parse, range, run, snippets, fold, close };
+  const api = { parse, range, run, snippets, fold, foldedOf, close };
   if (typeof module === 'object' && module.exports) module.exports = api;
   return api;
 })();

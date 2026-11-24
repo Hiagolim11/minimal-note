@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 global.SpellText = require('../../src/js/spell-text.js'); // ignora código e links como o app
+global.SmartSearch = require('../../src/js/search.js'); // fold e cache do conteúdo dobrado
 const L = require('../../src/js/linksuggest.js');
 
 const targets = [{ path: 'Orçamento.md', name: 'Orçamento' }, { path: 'Cliente X.md', name: 'Cliente X' }, { path: 'Ideias.md', name: 'Ideias' }, { path: 'Ana.md', name: 'Ana' }];

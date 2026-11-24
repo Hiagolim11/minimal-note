@@ -3,7 +3,8 @@
 // - notas que citam esta sem link;
 // - notas parecidas (mesmas palavras e tags) que ainda não estão ligadas.
 const LinkSuggest = (() => {
-  const fold = (s) => { let o = ''; for (const ch of String(s)) { const b = ch.normalize('NFD')[0]; o += b.length === ch.length ? b.toLowerCase() : ch.toLowerCase(); } return o.length === s.length ? o : String(s).toLowerCase(); };
+  // mesmo fold da busca (rápido) e o mesmo cache do conteúdo dobrado de cada nota
+  const fold = SmartSearch.fold, foldedOf = SmartSearch.foldedOf;
   // palavras comuns que não viram sugestão nem contam como "parecidas"
   const STOP = new Set(('a o e é de da do das dos em no na nos nas um uma uns umas para por com sem que se como mais mas ou ao aos à às' +
     ' isso isto esse essa este esta ele ela eles elas eu tu nós vós você vocês meu minha seu sua nosso nossa foi ser ter tem está estão era' +
@@ -17,8 +18,8 @@ const LinkSuggest = (() => {
   const inRanges = (r, p) => (typeof SpellText !== 'undefined' ? SpellText.inRanges(r, p) : false);
 
   // primeira menção (fora de links e código) de cada nome: [{ path, name, index, length, text }]
-  function mentions(text, targets) {
-    const f = fold(text), skip = skipOf(text), out = [];
+  function mentions(text, targets, f = fold(text)) {
+    const skip = skipOf(text), out = [];
     for (const t of targets) {
       const k = fold(t.name);
       if (k.length < 3 || STOP.has(k) || /^\d+$/.test(k)) continue;
@@ -43,17 +44,26 @@ const LinkSuggest = (() => {
   }
 
   // vetores de palavras (TF-IDF) para "parecidas"
-  function terms(text) {
+  function terms(text, f = fold(text)) {
     const m = new Map();
-    for (const w of fold(text).match(/[\p{L}]{4,}/gu) || []) if (!STOP.has(w)) m.set(w, (m.get(w) || 0) + 1);
+    for (const w of f.match(/[\p{L}]{4,}/gu) || []) if (!STOP.has(w)) m.set(w, (m.get(w) || 0) + 1);
     return m;
+  }
+  // palavras de cada nota em cache até o conteúdo mudar (refazer todas a cada tecla custava >1 s)
+  const termCache = new WeakMap();
+  function termsOf(n) {
+    const c = termCache.get(n);
+    if (c && c.content === n.content) return c.t;
+    const t = terms(n.content, foldedOf(n));
+    termCache.set(n, { content: n.content, t });
+    return t;
   }
   function similar(target, notes, { k = 5, exclude = new Set() } = {}) {
     const vec = new Map(), df = new Map();
-    for (const n of notes) { const t = terms(n.content); vec.set(n, t); for (const w of t.keys()) df.set(w, (df.get(w) || 0) + 1); }
+    for (const n of notes) { const t = termsOf(n); vec.set(n, t); for (const w of t.keys()) df.set(w, (df.get(w) || 0) + 1); }
     const N = notes.length, idf = (w) => Math.log(1 + N / (df.get(w) || 1));
     const weigh = (t) => { const o = new Map(); let norm = 0; for (const [w, c] of t) { const v = (1 + Math.log(c)) * idf(w); o.set(w, v); norm += v * v; } return { o, norm: Math.sqrt(norm) || 1 }; };
-    const A = weigh(vec.get(target) || terms(target.content)), tagsA = new Set(target.tags || []);
+    const A = weigh(vec.get(target) || termsOf(target)), tagsA = new Set(target.tags || []);
     const out = [];
     for (const n of notes) {
       if (n === target || exclude.has(n.path)) continue;
@@ -92,7 +102,7 @@ const LinkSuggest = (() => {
     const theirs = [];
     for (const n of others(note)) {
       if (n.links.some((l) => resolveLink(l, n.path) === note.path)) continue;
-      const m = mentions(n.content, [{ path: note.path, name: note.name }])[0];
+      const m = mentions(n.content, [{ path: note.path, name: note.name }], foldedOf(n))[0];
       if (m) theirs.push({ n, m });
       if (theirs.length >= 8) break;
     }

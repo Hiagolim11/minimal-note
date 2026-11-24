@@ -32,7 +32,8 @@ module.exports = [
   { wait: 800, js: `'depois: ' + JSON.stringify(editor.ta.value.split('\\n').slice(-2, -1))` },
   { wait: 300, js: `'marcadas: ' + JSON.stringify([...document.querySelectorAll('.editor-spell span')].map((s) => s.textContent))` },
   { js: tagSpan('exenplo') },
-  { ...rightClick, wait: 700, js: `JSON.stringify({ open: !document.getElementById('spell-pop').hidden, sugs: [...document.querySelectorAll('#spell-pop .sp-sug')].map((b) => b.textContent) })` },
+  // `js` roda logo após o clique (antes do wait) e as sugestões chegam do worker: espera até 3 s
+  { ...rightClick, wait: 700, js: `(async () => { for (let i = 0; i < 60 && !document.querySelector('#spell-pop .sp-sug'); i++) await new Promise((r) => setTimeout(r, 50)); return JSON.stringify({ open: !document.getElementById('spell-pop').hidden, sugs: [...document.querySelectorAll('#spell-pop .sp-sug')].map((b) => b.textContent) }); })()` },
   { shot: 'spell-pop' },
   { click: '#spell-pop .sp-sug', wait: 400, js: `JSON.stringify({ fixed: editor.ta.value.includes('o exemplo esta'), closed: document.getElementById('spell-pop').hidden })` },
   // adicionar ao dicionário pessoal (fica no cofre)
