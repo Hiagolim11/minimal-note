@@ -1,0 +1,140 @@
+# Gera os instaladores e anexa à release da tag.
+# - Automático: ao enviar uma tag v* (ex.: git push origin v1.9.3).
+# - Manual: Actions › Release › Run workflow, informando a tag (ex.: v1.9.2) — serve para
+#   completar uma release antiga. Com "dry_run", só gera os arquivos (ficam como artefatos da execução).
+#
+# APK: assinado com a chave da 1.4.0, guardada nos secrets do repositório:
+#   ANDROID_KEYSTORE_BASE64  (o .jks em base64)   ANDROID_KEYSTORE_PASSWORD
+#   ANDROID_KEY_ALIAS                              ANDROID_KEY_PASSWORD
+# Sem esses secrets o APK é pulado (os outros instaladores saem normalmente).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag a gerar (ex.: v1.9.2)'
+        required: true
+      dry_run:
+        description: 'Só gerar, sem anexar à release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+  # impressão digital (SHA-256) do certificado da 1.4.0: o APK só é publicado se bater
+  # (com outra chave o Android não instala por cima)
+  APK_CERT_SHA256: 6d83f830c899b5e2d9688a8b3e98a2ddfa33dbcdb98f1fe2d715b1d202f46a6d
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ env.TAG }}' }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - name: Versão do package.json = tag
+        run: |
+          v="v$(node -p "require('./package.json').version")"
+          [ "$v" = "$TAG" ] || { echo "::error::package.json está em $v, mas a tag é $TAG"; exit 1; }
+      - run: npm ci
+      - run: npm test
+
+  linux:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ env.TAG }}' }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      # --publish never: o electron-builder não publica sozinho; quem anexa é o job "release"
+      - run: npm run build:linux-dir -- --publish never && node build/make-deb.js
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: dist/*.deb, if-no-files-found: error }
+
+  windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ env.TAG }}' }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run dist:win -- --publish never
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: dist/*.exe, if-no-files-found: error }
+
+  android:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - name: Chave de assinatura
+        if: env.HAS_KEY != 'true'
+        run: echo "::warning::Secrets da chave do APK não configurados — APK pulado"
+      - uses: actions/checkout@v4
+        if: env.HAS_KEY == 'true'
+        with: { ref: '${{ env.TAG }}' }
+      - uses: actions/setup-node@v4
+        if: env.HAS_KEY == 'true'
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        if: env.HAS_KEY == 'true'
+        with: { distribution: temurin, java-version: 21 }
+      - name: Prepara a chave (fora do repositório, apagada no fim)
+        if: env.HAS_KEY == 'true'
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          umask 077
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$RUNNER_TEMP/release.jks" "$KS_PASS" "$KEY_ALIAS" "$KEY_PASS" > "$RUNNER_TEMP/signing.properties"
+          echo "MINIMAL_NOTE_SIGNING=$RUNNER_TEMP/signing.properties" >> "$GITHUB_ENV"
+      - if: env.HAS_KEY == 'true'
+        run: npm ci
+      - if: env.HAS_KEY == 'true'
+        run: npm run android:apk
+      - name: Confere a assinatura (mesma chave da 1.4.0)
+        if: env.HAS_KEY == 'true'
+        run: |
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          [ -f "$apk" ] || { echo "::error::APK assinado não foi gerado (saiu sem assinatura?)"; exit 1; }
+          signer=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner
+          got=$("$signer" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          [ "$got" = "$APK_CERT_SHA256" ] || { echo "::error::APK assinado com outra chave ($got)"; exit 1; }
+          mkdir -p dist && cp "$apk" "dist/Minimal-Note-${TAG#v}.apk"
+      - name: Apaga a chave
+        if: always() && env.HAS_KEY == 'true'
+        run: rm -f "$RUNNER_TEMP/release.jks" "$RUNNER_TEMP/signing.properties"
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_KEY == 'true'
+        with: { name: android, path: dist/*.apk, if-no-files-found: error }
+
+  release:
+    needs: [linux, windows, android]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out, merge-multiple: true }
+      - name: Anexa à release (cria a release se ainda não existir)
+        run: |
+          ls -la out
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$TAG" -R "$GITHUB_REPOSITORY" --title "Minimal Note ${TAG#v}" --notes "Instaladores da versão ${TAG#v}."
+          gh release upload "$TAG" out/* -R "$GITHUB_REPOSITORY" --clobber
