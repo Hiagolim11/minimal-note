@@ -1,0 +1,29 @@
+# Testes a cada envio: unitários (node --test) e de ponta a ponta (abrem o app numa tela virtual).
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      # xvfb: tela virtual para o Electron; o modo de teste já emula o foco da janela
+      - run: sudo apt-get update -q && sudo apt-get install -yq xvfb
+      - run: xvfb-run -a bash test/e2e/all.sh
