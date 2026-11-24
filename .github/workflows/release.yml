@@ -3,7 +3,7 @@
 # - Manual: Actions › Release › Run workflow, informando a tag (ex.: v1.9.2) — serve para
 #   completar uma release antiga. Com "dry_run", só gera os arquivos (ficam como artefatos da execução).
 #
-# APK: assinado com a chave da 1.4.0, guardada nos secrets do repositório:
+# APK: assinado com a chave oficial (desde a 1.9.2), guardada nos secrets do repositório:
 #   ANDROID_KEYSTORE_BASE64  (o .jks em base64)   ANDROID_KEYSTORE_PASSWORD
 #   ANDROID_KEY_ALIAS                              ANDROID_KEY_PASSWORD
 # Sem esses secrets o APK é pulado (os outros instaladores saem normalmente).
@@ -27,9 +27,9 @@ permissions:
 
 env:
   TAG: ${{ inputs.tag || github.ref_name }}
-  # impressão digital (SHA-256) do certificado da 1.4.0: o APK só é publicado se bater
-  # (com outra chave o Android não instala por cima)
-  APK_CERT_SHA256: 6d83f830c899b5e2d9688a8b3e98a2ddfa33dbcdb98f1fe2d715b1d202f46a6d
+  # impressão digital (SHA-256) do certificado oficial (CN=Minimal Note, O=Hiagolim11, C=BR, desde a 1.9.2;
+  # a da 1.4.0–1.9.1 era 6d83f830…): o APK só é publicado se bater — com outra chave o Android não instala por cima
+  APK_CERT_SHA256: a093413825682c4a26ebdf58b005e024b03a22f45932924ad0d95b4737049f85
 
 jobs:
   test:
@@ -107,7 +107,7 @@ jobs:
         run: npm ci
       - if: env.HAS_KEY == 'true'
         run: npm run android:apk
-      - name: Confere a assinatura (mesma chave da 1.4.0)
+      - name: Confere a assinatura (chave oficial)
         if: env.HAS_KEY == 'true'
         run: |
           apk=android/app/build/outputs/apk/release/app-release.apk
