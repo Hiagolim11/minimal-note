@@ -338,6 +338,27 @@ handle('capture:open', async () => openCapture());
 handle('capture:save', async (req) => saveCapture(req));
 handle('capture:close', async () => { captureWin?.close(); return true; });
 
+// ---------- atualizações ----------
+// Consulta a última release no GitHub (a interface chama no máximo 1x por dia, se a opção estiver
+// ligada). Só informa: nada é baixado nem instalado sozinho.
+const UPDATE_URL = 'https://api.github.com/repos/Hiagolim11/minimal-note/releases/latest';
+handle('app:version', async () => app.getVersion());
+handle('update:check', async () => {
+  const url = (TEST_MODE && process.env.LUMEN_UPDATE_URL) || UPDATE_URL;
+  // sessão separada: a padrão bloqueia http(s) quando "imagens da internet" está desligado
+  const ses = session.fromPartition('updates');
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 15000);
+  try {
+    const r = await ses.fetch(url, { headers: { Accept: 'application/vnd.github+json' }, signal: ctl.signal });
+    if (!r.ok) throw new Error(`o GitHub respondeu ${r.status}`);
+    const j = await r.json();
+    return { latest: String(j.tag_name || '').replace(/^v/, ''), url: String(j.html_url || ''), name: String(j.name || '') };
+  } catch (e) {
+    throw new Error(ctl.signal.aborted ? 'o GitHub demorou demais para responder' : (e.message || 'sem conexão'));
+  } finally { clearTimeout(timer); }
+});
+
 // ---------- revisão gramatical (LanguageTool) ----------
 // O endereço vem das configurações salvas (nunca do renderer): servidor público ou um servidor
 // próprio (https, ou http só em localhost / rede local).

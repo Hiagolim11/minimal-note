@@ -61,4 +61,8 @@ out=$(bash test/e2e/run.sh test/e2e/capture-protected.js)
 check capture-protected "$out" 'protegida: true' 'é protegida por senha: salve como nota nova' '\"continuaCifrada\":true,\"textoAbertoNoArquivo\":false' 'modo nota: Notas rápidas/nota avulsa.md'
 out=$(bash test/e2e/run.sh test/e2e/remote-dom.js)
 check remote-dom "$out" '{\"remotos\":0,\"links\":[\"🖼 foto\",\"🖼 imagem da internet\"],\"local\":true}' '{\"imagensRemotas\":2,\"linksBloqueio\":0}'
+out=$(bash test/e2e/run.sh test/e2e/history.js)
+check history "$out" 'guardadas: [\"versão 1\",\"versão 2\"]' '{\"tela\":\"versão 1\",\"disco\":\"versão 1\",\"historico\":[\"versão 1\",\"versão 2\",\"versão 3\"]}' '{\"novo\":3,\"antigo\":0}' '{\"vazouTextoAberto\":false,\"vazouVersoesAntigas\":false,\"ultimaCifrada\":true}' '{\"tela\":\"segredo girassol\",\"discoCifrado\":true,\"disco\":\"segredo girassol\"}'
+out=$(LUMEN_UPDATE_URL=http://127.0.0.1:47125/latest bash test/e2e/run.sh test/e2e/updates.js 'node test/e2e/update-server.js')
+check updates "$out" '{\"aviso\":\"Versão 9.9.9 disponível | Você está na ' '{\"fechado\":true,\"dispensada\":\"9.9.9\"}' '{\"temNova\":true,\"avisoDeNovo\":false}' 'manual mostra: true' '| opção: true' 'update-server: 3 consultas'
 exit $fail

@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('lumen', {
     open: () => call('capture:open'),
     save: (req) => call('capture:save', req),
   },
+  app: { version: () => call('app:version') },
+  update: { check: () => call('update:check') },
   lt: {
     check: (req) => call('lt:check', req),
   },

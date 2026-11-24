@@ -380,6 +380,16 @@ Voltar para [[Bem-vindo]].
       MN.consumeIntent().then((r) => r.intent && cb(r.intent)).catch(() => {});
     },
     power: () => !!info?.powerSave,
+    app: { version: async () => (info || (info = await MN.info())).version || '' },
+    // última versão publicada (a CSP libera só api.github.com para isso)
+    update: {
+      check: async () => {
+        const r = await fetch('https://api.github.com/repos/Hiagolim11/minimal-note/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
+        if (!r.ok) throw new Error(`o GitHub respondeu ${r.status}`);
+        const j = await r.json();
+        return { latest: String(j.tag_name || '').replace(/^v/, ''), url: String(j.html_url || ''), name: String(j.name || '') };
+      },
+    },
     shell: {
       reveal: async () => true,
       // o Capacitor abre URLs externas no navegador do sistema

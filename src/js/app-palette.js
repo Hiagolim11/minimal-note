@@ -74,6 +74,8 @@ const COMMANDS = [
   { id: 'math-insert', name: 'Inserir fórmula ($$ $$)', icon: 'code', run: () => insertSnippet('\n$$\nE = mc^2\n$$\n', 4, 12) },
   { id: 'diagram-insert', name: 'Inserir diagrama (Mermaid)', icon: 'graph', run: () => insertSnippet('\n```mermaid\nflowchart LR\n  A[Ideia] --> B[Rascunho] --> C[Pronto]\n```\n', 25, 65) },
   { id: 'protect', name: 'Proteger nota com senha', icon: 'vault', run: () => Protect.protectNote() },
+  { id: 'history', name: 'Versões anteriores da nota', icon: 'refresh', run: () => History.open() },
+  { id: 'updates', name: 'Procurar atualizações', icon: 'download', run: () => Updates.check({ manual: true }) },
   { id: 'unprotect', name: 'Remover senha da nota', icon: 'vault', run: () => Protect.removeProtection() },
   { id: 'lock-all', name: 'Bloquear notas protegidas agora', icon: 'vault', run: async () => { const n = await Protect.lockAll(); toast(n ? `${n} nota(s) bloqueada(s)` : 'Nenhuma nota protegida aberta'); } },
   { id: 'new-folder', name: 'Nova pasta', icon: 'folderPlus', run: () => newFolder('') },

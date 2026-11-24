@@ -104,6 +104,7 @@ const DEFAULT_SETTINGS = {
   workspaceOpacity: 88,  // transparência da área de escrita (deixa o fundo aparecer)
   defaultMode: 'edit',
   spellcheck: true,      // corretor ortográfico pt-BR (Hunspell, sem internet)
+  checkUpdates: true,    // procura versão nova no GitHub 1x por dia (só avisa; nada é baixado sozinho)
   spellAuto: true,       // corrige acentos óbvios ao digitar (nao → não)
   typoCapitalize: true,  // maiúscula no início da frase
   typoSpaces: true,      // espaço antes de pontuação e espaços repetidos

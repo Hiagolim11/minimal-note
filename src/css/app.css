@@ -817,3 +817,9 @@ mark.hl, .sr-hit mark { background: color-mix(in srgb, var(--accent) 30%, transp
 .lock-err { min-height: 18px; margin: 8px 0; font-size: 13px; color: #e5484d; }
 .lock-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .ls-item .bl-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+/* aviso de versão nova (updates.js) */
+.update-card { position: fixed; right: 16px; bottom: 44px; z-index: 60; display: flex; align-items: center; gap: 10px; max-width: 420px; padding: 12px 14px; border-radius: var(--radius); background: var(--bg-3); border: 1px solid var(--border); box-shadow: var(--shadow); font-size: 13px; animation: toastIn .28s var(--ease); }
+.update-card .uc-icon { color: var(--accent); display: flex; }
+.update-card .uc-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.update-card .uc-text small { color: var(--text-muted); }

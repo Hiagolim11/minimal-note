@@ -159,8 +159,14 @@ function renderSection() {
     const keys = [['Nova nota', 'Ctrl N'], ['Paleta / abrir nota', 'Ctrl P'], ['Comandos', 'Ctrl Shift P'], ['Buscar no cofre', 'Ctrl Shift F'], ['Localizar na nota', 'Ctrl F'], ['Substituir na nota', 'Ctrl H'], ['Revisar gramática', 'F7'], ['Edição ↔ leitura', 'Ctrl E'], ['Modo dividido', 'Ctrl \\'], ['Grafo', 'Ctrl G'], ['Nota diária', 'Ctrl Shift D'], ['Fechar aba', 'Ctrl W'], ['Próxima aba', 'Ctrl Tab'], ['Salvar agora', 'Ctrl S'], ['Configurações', 'Ctrl ,'], ['Modo foco', 'F11'], ['Negrito / itálico', 'Ctrl B / Ctrl I'], ['Link', 'Ctrl K'], ['Tarefa', 'Ctrl L'], ['Riscado', 'Ctrl Shift X'], ['Destaque', 'Ctrl Shift H'], ['Indentar', 'Tab / Shift Tab'], ['Fonte maior / menor', 'Ctrl + / Ctrl −']];
     c.innerHTML = `<h2>Atalhos</h2><p class="sub">Atalhos de teclado disponíveis.</p><div class="set-group">${keys.map(([a, k]) => row(a, '', `<kbd>${k}</kbd>`)).join('')}</div>`;
   } else {
-    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão 1.9 · notas em Markdown, locais e suas.</p>
-      <p class="sub">${S.notes.size} notas · ${[...S.notes.values()].reduce((a, n) => a + n.words, 0).toLocaleString('pt-BR')} palavras no cofre</p></div>`;
+    c.innerHTML = `<div class="about"><div class="empty-logo">${icon('sparkles', 34)}</div><h2>Minimal Note</h2><p class="sub">Versão <span id="app-version">…</span> · notas em Markdown, locais e suas.</p>
+      <p class="sub">${S.notes.size} notas · ${[...S.notes.values()].reduce((a, n) => a + n.words, 0).toLocaleString('pt-BR')} palavras no cofre</p></div>
+      <div class="set-group">
+        ${row('Procurar atualizações', 'Uma vez por dia o app consulta o GitHub e avisa se há versão nova. Nada é baixado sozinho.', toggleCtl('checkUpdates'))}
+        ${row('Procurar agora', '', `<button class="btn" id="upd-now">${icon('refresh', 15)}Procurar</button>`)}
+      </div>`;
+    lumen.app?.version().then((v) => { const el = $('#app-version', c); if (el) el.textContent = v; }).catch(() => {});
+    $('#upd-now', c)?.addEventListener('click', () => Updates.check({ manual: true }));
   }
   bindSection();
 }

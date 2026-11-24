@@ -230,6 +230,7 @@ function bindTree() {
         { label: 'Renomear', icon: 'edit', run: async () => { const n = await promptName('Renomear nota', baseName(path)); if (n && cleanName(n)) renamePath(path, joinPath(dirName(path), cleanName(n) + (path.match(/\.\w+$/)?.[0] || '.md'))); } },
         { label: 'Duplicar', icon: 'copy', run: () => duplicateNote(path) },
         Protect.isProtected(path) ? { label: 'Remover senha', icon: 'vault', run: () => Protect.removeProtection(path) } : { label: 'Proteger com senha', icon: 'vault', run: () => Protect.protectNote(path) },
+        { label: 'Versões anteriores', icon: 'refresh', run: () => History.open(path) },
         ...(IS_ANDROID ? [{ label: 'Compartilhar', icon: 'external', run: () => shareNote(path) }] : []),
       );
       else items.push({ label: 'Copiar link de incorporação', icon: 'link', run: () => { navigator.clipboard.writeText(`![[${path}]]`); toast('Link copiado'); } });
