@@ -4,7 +4,10 @@
 //   criada:...  nome:texto
 const SmartSearch = (() => {
   // minúsculas sem acento, mantendo o mesmo comprimento (as posições valem no texto original)
-  const fold = (s) => { let o = ''; for (const ch of String(s)) { const b = ch.normalize('NFD')[0]; o += b.length === ch.length ? b.toLowerCase() : ch.toLowerCase(); } return o.length === s.length ? o : String(s).toLowerCase(); };
+  // (só maiúsculas ASCII e caracteres não ASCII são trocados: normalizar letra por letra o texto
+  // inteiro custava ~1 ms por nota a cada busca)
+  const foldCh = (ch) => { if (ch.length === 1 && ch < '\x80') return ch.toLowerCase(); const b = ch.normalize('NFD')[0]; return b.length === ch.length ? b.toLowerCase() : ch.toLowerCase(); };
+  const fold = (s) => { s = String(s); const o = s.replace(/[A-Z]|[^\x00-\x7F]/gu, foldCh); return o.length === s.length ? o : s.toLowerCase(); };
   const DAY = 86400000;
   const startOfDay = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
@@ -66,10 +69,20 @@ const SmartSearch = (() => {
   function wordsOf(note) {
     const c = wordCache.get(note);
     if (c && c.content === note.content) return c.words;
-    const words = new Map(), f = fold(note.content);
+    const words = new Map(), f = foldedOf(note);
     for (const m of f.matchAll(/[\p{L}\p{N}]{2,}/gu)) if (!words.has(m[0])) words.set(m[0], m.index);
     wordCache.set(note, { content: note.content, words });
     return words;
+  }
+
+  // conteúdo dobrado de cada nota, em cache até o conteúdo mudar
+  const foldCache = new WeakMap();
+  function foldedOf(note) {
+    const c = foldCache.get(note);
+    if (c && c.content === note.content) return c.f;
+    const f = fold(note.content);
+    foldCache.set(note, { content: note.content, f });
+    return f;
   }
 
   const TASK = /^\s*(?:[-*+]|\d+[.)])\s+\[([ xX])\]\s+(.*)$/;
@@ -80,7 +93,7 @@ const SmartSearch = (() => {
     const edited = q.edited ? range(q.edited, now) : null, created = q.created ? range(q.created, now) : null;
     const results = [];
     for (const n of notes) {
-      const fname = fold(n.name), fpath = fold(n.path), fc = fold(n.content);
+      const fname = fold(n.name), fpath = fold(n.path), fc = foldedOf(n);
       if (q.tags.length && !q.tags.every((t) => (n.tags || []).some((x) => { const fx = fold(x); return fx === t || fx.startsWith(t + '/'); }))) continue;
       if (q.folders.length && !q.folders.some((f) => fpath.startsWith(f + '/') || fpath.split('/').slice(0, -1).some((part) => part === f))) continue;
       if (q.names.length && !q.names.every((t) => fname.includes(t))) continue;

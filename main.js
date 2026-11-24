@@ -2,6 +2,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, session, globalShortcut } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const VaultCrypto = require('./src/js/vault-crypto.js');
 const fs = require('fs/promises');
 const fsSync = require('fs');
 
@@ -324,6 +325,8 @@ async function saveCapture({ text, mode } = {}) {
     const abs = resolveInVault(rel);
     let cur = '';
     try { cur = await fs.readFile(abs, 'utf8'); } catch { cur = '# Caixa de entrada\n\nAnotações rápidas (Ctrl+Alt+N). Organize quando der.\n'; }
+    // nota protegida por senha: acrescentar texto aberto estragaria o arquivo cifrado
+    if (VaultCrypto.isEncrypted(cur)) throw new Error(`“${path.basename(rel, '.md')}” é protegida por senha: salve como nota nova`);
     const lines = body.split('\n');
     const entry = lines.length === 1 ? `- ${stamp} · ${body}` : `- ${stamp} · ${lines[0]}\n` + lines.slice(1).map((l) => '  ' + l).join('\n');
     await atomicWrite(abs, cur.replace(/\s*$/, '\n') + entry + '\n');

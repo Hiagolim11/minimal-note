@@ -54,3 +54,21 @@ test('trechos: marcas nas posições certas do texto original', () => {
   assert.equal(snip.text.slice(a, b), 'orçamento');
   assert.equal(n.content.slice(r.marks[0][0], r.marks[0][1]), 'orçamento');
 });
+
+// fold antigo (letra por letra), como referência: o rápido tem de dar exatamente o mesmo resultado
+const oldFold = (s) => { let o = ''; for (const ch of String(s)) { const b = ch.normalize('NFD')[0]; o += b.length === ch.length ? b.toLowerCase() : ch.toLowerCase(); } return o.length === s.length ? o : String(s).toLowerCase(); };
+test('fold rápido = fold letra por letra (acentos, maiúsculas, emoji, İ, ß, ﬁ)', () => {
+  const samples = ['Ação Rápida ÇÃO', 'ÀÉÎÕÜ àéîõü ñÑ', 'emoji 😀 e 👍🏽 juntos', 'İstanbul ǅ ß ﬁ ẞ', 'ABC xyz 123 _-/', '', 'Ωμέγα Привет 東京', 'Ăắ ỷ ḉ'];
+  let seed = 9; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const pool = 'aAzZéÉçÇãÃ😀İßﬁΩж東 \n#-ǅẞ';
+  for (let k = 0; k < 300; k++) { let x = ''; const n = 1 + Math.floor(rnd() * 20); for (let i = 0; i < n; i++) x += [...pool][Math.floor(rnd() * [...pool].length)]; samples.push(x); }
+  for (const x of samples) assert.equal(Q.fold(x), oldFold(x), JSON.stringify(x));
+});
+
+test('busca usa o texto atualizado depois que o conteúdo da nota muda (cache)', () => {
+  const n = { path: 'a.md', name: 'a', content: 'banana', tags: [], mtime: 0 };
+  assert.equal(Q.run([n], 'banana').total, 1);
+  n.content = 'maçã';
+  assert.equal(Q.run([n], 'banana').total, 0);
+  assert.equal(Q.run([n], 'maca').total, 1);
+});

@@ -1,0 +1,1 @@
+sleep 1; for d in $(seq 1 30); do mkdir -p "$VAULT/pasta$d"; for i in $(seq 1 100); do printf "# Nota %s\n\nTexto da [[Nota %s]] #tag%s com informação e ação.\n%s\n" $i $((i+1)) $((i%20)) "$(head -c 3000 /dev/zero | tr "\0" "a")" > "$VAULT/pasta$d/Nota $i.md"; done; done
