@@ -114,7 +114,7 @@ function renderSection() {
         ${row('Modo padrão de novas abas', '', selectCtl('defaultMode', { edit: 'Edição', split: 'Dividido', preview: 'Leitura' }))}
         ${row('Listas inteligentes', 'Enter continua listas, numeração e tarefas.', toggleCtl('smartLists'))}
         ${row('Fechar pares automaticamente', 'Parênteses, colchetes, aspas e crases.', toggleCtl('autoPair'))}
-        ${IS_ANDROID ? '' : row('Carregar imagens da internet', 'Desligado, abrir uma nota não avisa nenhum site (evita rastreadores em notas recebidas).', toggleCtl('remoteImages'))}
+        ${row('Carregar imagens da internet', 'Desligado, abrir uma nota não avisa nenhum site (evita rastreadores em notas recebidas). Cada imagem vira um link que abre no navegador.', toggleCtl('remoteImages'))}
         ${IS_ANDROID ? '' : row('Captura rápida (Ctrl+Alt+N)', 'Em qualquer programa, abre uma janelinha para anotar; salva na nota “Caixa de entrada” ou numa nota nova.', toggleCtl('quickCapture'))}
         ${row('Bloquear notas protegidas', 'Depois de quantos minutos sem uso as notas com senha voltam a pedir a senha (0 = só ao fechar o app).', `<input type="number" min="0" max="240" step="1" data-key="lockMinutes" value="${Number(s.lockMinutes ?? 10)}" style="width:80px">`)}
         ${row('Lembrete de tarefas', 'Avisa uma vez por dia das tarefas para hoje e atrasadas (📅 data).', toggleCtl('taskReminders'))}
@@ -180,7 +180,7 @@ function bindSection() {
       if (key === 'spellcheck') window.__lumenSpell?.sync();
       if (key === 'ltServer') renderSection();
       if (key === 'quickCapture') lumen.settings.set(S.settings); // o atalho global fica no processo principal
-      if (key === 'remoteImages') lumen.settings.set(S.settings).then(renderPreview); // o bloqueio fica no processo principal
+      if (key === 'remoteImages') lumen.settings.set(S.settings).then(renderPreview); // o processo principal (desktop) lê daqui
       if (key === 'sort') renderTree();
       requestAnimationFrame(() => editor.autosize());
     });

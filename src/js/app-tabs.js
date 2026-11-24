@@ -211,6 +211,7 @@ function fileUrl(rel) {
   return 'file:///' + full.map((seg, i) => (i === 0 && /^[A-Za-z]:$/.test(seg) ? seg : encodeURIComponent(seg))).filter(Boolean).join('/');
 }
 MD.hooks.resolve = (t) => resolveLink(t, activeTab()?.path);
+MD.hooks.remoteImages = () => S.settings?.remoteImages === true;
 MD.hooks.imageSrc = (p) => {
   const key = p.toLowerCase();
   const found = S.images.get(key) || S.images.get(key.split('/').pop());

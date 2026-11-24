@@ -17,7 +17,8 @@ check watcher "$out" '{\"selfChanges\":0}' '\"welcomeHasLine\":true'
 out=$(bash test/e2e/run.sh test/e2e/security.js)
 check security "$out" 'recusado: Pasta não autorizada' 'recusado após settings:set' 'reabrir cofre salvo ok' 'recusado: Caminho fora do cofre' '"true object"'
 out=$(bash test/e2e/run.sh test/e2e/remote.js 'node test/e2e/count-server.js')
-check remote "$out" 'total de acessos: 2'
+# 3: a, b e o fundo c (antes o pedido cancelado do fundo ficava em cache e ele não carregava nem depois de ligar)
+check remote "$out" 'total de acessos: 3'
 grep -B99 -F 'fim da fase bloqueada' <<<"$out" | grep -q 'servidor recebeu' && { echo "✖ remote: imagem baixada com a opção desligada"; fail=1; }
 out=$(bash test/e2e/run.sh test/e2e/symlink.js 'sleep 3; echo segredo > "$VAULT/../fora.txt"; ln -s ../fora.txt "$VAULT/link.md"; ln -s .. "$VAULT/pasta-link"; mkdir -p "$VAULT/sub"')
 check symlink "$out" 'recusado: Caminho fora do cofre (link simbólico): link.md' 'pasta-link/novo.md' 'escrita normal em subpasta nova: ok'
@@ -58,4 +59,6 @@ out=$(bash test/e2e/run.sh test/e2e/trash.js)
 check trash "$out" '\"onde\":[\"vault\",\"vault\"],\"naLixeira\":2,\"naArvore\":false,\"notas\":[]' '{\"linha\":true,\"texto\":\"2 itens\"}' 'depois de esvaziar: 0' 'linha visível com lixeira vazia: false'
 out=$(bash test/e2e/run.sh test/e2e/capture-protected.js)
 check capture-protected "$out" 'protegida: true' 'é protegida por senha: salve como nota nova' '\"continuaCifrada\":true,\"textoAbertoNoArquivo\":false' 'modo nota: Notas rápidas/nota avulsa.md'
+out=$(bash test/e2e/run.sh test/e2e/remote-dom.js)
+check remote-dom "$out" '{\"remotos\":0,\"links\":[\"🖼 foto\",\"🖼 imagem da internet\"],\"local\":true}' '{\"imagensRemotas\":2,\"linksBloqueio\":0}'
 exit $fail

@@ -9,7 +9,23 @@ const MD = (() => {
   const hooks = {
     resolve: () => null,   // (target) => caminho ou null
     imageSrc: (p) => p,    // (caminho relativo) => URL
+    remoteImages: () => true, // false = nada da internet é carregado (imagens, vídeos, url() em estilos)
   };
+
+  // bloqueio de conteúdo remoto: roda no documento inerte do DOMPurify, antes de qualquer download
+  // (no desktop o processo principal também bloqueia; no Android esta é a única barreira)
+  const REMOTE = /^\s*(?:https?:)?\/\//i;
+  let blockRemote = false;
+  if (typeof DOMPurify !== 'undefined' && DOMPurify.addHook) DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (!blockRemote || !node.getAttribute) return;
+    const src = node.getAttribute('src');
+    if (src && REMOTE.test(src)) {
+      if (node.tagName === 'IMG') node.setAttribute('data-remote-src', src);
+      node.removeAttribute('src');
+    }
+    for (const a of ['srcset', 'poster']) if (node.hasAttribute(a) && /(?:https?:)?\/\//i.test(node.getAttribute(a))) node.removeAttribute(a);
+    if (/url\(\s*['"]?\s*(?:https?:)?\/\//i.test(node.getAttribute('style') || '')) node.removeAttribute('style');
+  });
 
   const wikilink = {
     name: 'wikilink',
@@ -128,13 +144,24 @@ const MD = (() => {
   function render(src) {
     const { meta, body } = splitFrontmatter(src);
     let html = marked.parse(body);
-    html = DOMPurify.sanitize(html, {
-      ADD_ATTR: ['data-target', 'data-heading', 'data-tag', 'data-external', 'data-tex', 'data-src'], ADD_TAGS: ['mark'],
-      // igual ao padrão do DOMPurify + file: (imagens do cofre são carregadas do disco)
-      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-    });
+    blockRemote = !hooks.remoteImages();
+    try {
+      html = DOMPurify.sanitize(html, {
+        ADD_ATTR: ['data-target', 'data-heading', 'data-tag', 'data-external', 'data-tex', 'data-src'], ADD_TAGS: ['mark'],
+        // igual ao padrão do DOMPurify + file: (imagens do cofre são carregadas do disco)
+        ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+      });
+    } finally { blockRemote = false; }
     const wrap = document.createElement('div');
     wrap.innerHTML = html;
+    // imagem bloqueada vira um link (abre no navegador) no lugar do ícone de imagem quebrada
+    wrap.querySelectorAll('img[data-remote-src]').forEach((img) => {
+      const a = document.createElement('a');
+      a.className = 'external remote-img'; a.dataset.external = '1';
+      a.href = img.dataset.remoteSrc; a.title = img.dataset.remoteSrc;
+      a.textContent = '🖼 ' + (img.getAttribute('alt') || 'imagem da internet');
+      img.replaceWith(a);
+    });
 
     // callouts: > [!tipo] Título
     wrap.querySelectorAll('blockquote').forEach((bq) => {

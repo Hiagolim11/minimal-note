@@ -315,8 +315,12 @@ Voltar para [[Bem-vindo]].
       remove: async (rel) => {
         rel = clean(rel);
         if (!rel) throw new Error('Não é possível apagar o cofre');
-        const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-        await MN.rename({ from: abs(rel), to: abs(`${TRASH}/${stamp} ${rel.split('/').pop()}`) });
+        const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14), name = rel.split('/').pop();
+        // nome livre: dois itens de mesmo nome excluídos no mesmo segundo (ex.: A/Nota e B/Nota)
+        // fariam o segundo falhar com "Já existe um item com esse nome"
+        let dest = `${TRASH}/${stamp} ${name}`;
+        for (let i = 2; await exists(dest); i++) dest = `${TRASH}/${stamp} (${i}) ${name}`;
+        await MN.rename({ from: abs(rel), to: abs(dest) });
         return true;
       },
       saveImage: async (relDir, name, bytes) => {
