@@ -75,6 +75,11 @@ const COMMANDS = [
   { id: 'diagram-insert', name: 'Inserir diagrama (Mermaid)', icon: 'graph', run: () => insertSnippet('\n```mermaid\nflowchart LR\n  A[Ideia] --> B[Rascunho] --> C[Pronto]\n```\n', 25, 65) },
   { id: 'protect', name: 'Proteger nota com senha', icon: 'vault', run: () => Protect.protectNote() },
   { id: 'history', name: 'Versões anteriores da nota', icon: 'refresh', run: () => History.open() },
+  { id: 'conflicts', name: 'Resolver conflitos de sincronização', icon: 'info', run: () => {
+    const list = Conflicts.all();
+    if (!list.length) return toast('Nenhum conflito de sincronização no cofre');
+    openPalette('', () => list.map(({ path, n }) => ({ html: `<span class="pl-icon">${icon('note', 17)}</span><span class="pl-main">${esc(baseName(path))}<span class="pl-sub">${n} versão(ões) em conflito · ${esc(path)}</span></span>`, run: () => { openNote(path); Conflicts.resolve(path); } })), 'Notas com conflito de sincronização…');
+  } },
   { id: 'updates', name: 'Procurar atualizações', icon: 'download', run: () => Updates.check({ manual: true }) },
   { id: 'unprotect', name: 'Remover senha da nota', icon: 'vault', run: () => Protect.removeProtection() },
   { id: 'lock-all', name: 'Bloquear notas protegidas agora', icon: 'vault', run: async () => { const n = await Protect.lockAll(); toast(n ? `${n} nota(s) bloqueada(s)` : 'Nenhuma nota protegida aberta'); } },
@@ -100,9 +105,9 @@ const COMMANDS = [
   { id: 'export-html', name: 'Exportar nota como HTML', icon: 'download', run: () => exportHtml() },
   { id: 'export-pdf', name: 'Exportar nota como PDF', icon: 'download', run: () => exportPdf() },
   { id: 'switch-vault', name: IS_ANDROID ? 'Escolher pasta do cofre' : 'Trocar de cofre', icon: 'vault', run: () => chooseVault() },
+  { id: 'backup', name: 'Fazer backup do cofre (.zip)', icon: 'download', run: () => backupVault() },
   ...(IS_ANDROID ? [
     { id: 'share-note', name: 'Compartilhar nota', icon: 'external', run: () => shareNote() },
-    { id: 'backup', name: 'Fazer backup do cofre (.zip)', icon: 'download', run: () => backupVault() },
   ] : []),
   { id: 'reload', name: 'Recarregar cofre', icon: 'refresh', run: () => refreshVault().then(() => toast('Cofre recarregado')) },
   { id: 'font-up', name: 'Aumentar fonte', icon: 'type', key: 'Ctrl +', run: () => setSetting('fontSize', Math.min(26, S.settings.fontSize + 1)) },

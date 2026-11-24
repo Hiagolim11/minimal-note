@@ -143,6 +143,8 @@ function renderSection() {
             + row('Backup', 'Gera um .zip com todas as notas e anexos para salvar no Drive, enviar por e-mail etc.', `<button class="btn" id="set-backup">${icon('download', 15)}Fazer backup (.zip)</button>`)
             + row('Lixeira do cofre', 'Notas excluídas ficam na pasta .lixeira até você esvaziá-la.', `<span class="val" id="trash-count">…</span><button class="btn" id="set-empty-trash">${icon('trash', 15)}Esvaziar</button>`)
           : row('Cofre atual', esc(S.vault?.root || ''), `<button class="btn" id="set-reveal">${icon('external', 15)}Abrir pasta</button><button class="btn primary" id="set-switch">${icon('vault', 15)}Trocar</button>`)
+            + row('Backup automático', 'Um .zip por dia em Documentos › Minimal Note Backups (fora do cofre), guardando os 7 mais recentes.', toggleCtl('autoBackup'))
+            + row('Backup', 'Notas, anexos e histórico de versões num .zip.', `<button class="btn" id="set-backup">${icon('download', 15)}Fazer backup agora</button><button class="btn" id="set-backups-open">${icon('external', 15)}Abrir pasta</button>`)
             // só aparece quando algo foi para a .lixeira do cofre (local sem lixeira do sistema)
             + row('Lixeira do cofre', 'Itens excluídos onde não há lixeira do sistema (pendrive, rede…) ficam na pasta .lixeira do cofre.', `<span class="val" id="trash-count">…</span><button class="btn" id="set-empty-trash">${icon('trash', 15)}Esvaziar</button>`)}
         ${row('Pasta para novas notas', 'Vazio = raiz do cofre.', `<input type="text" data-key="newNoteFolder" value="${esc(s.newNoteFolder)}" placeholder="(raiz)">`)}
@@ -232,6 +234,7 @@ function bindSection() {
   $('#set-switch', c)?.addEventListener('click', async () => { await chooseVault(); renderSection(); });
   $('#set-reveal', c)?.addEventListener('click', () => lumen.shell.reveal(''));
   $('#set-backup', c)?.addEventListener('click', backupVault);
+  $('#set-backups-open', c)?.addEventListener('click', () => lumen.vault.openBackups?.().catch((e) => toast(e.message, 'error')));
   if ($('#dict-count', c)) {
     const SP = window.__lumenSpell;
     const upd = () => {

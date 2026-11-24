@@ -823,3 +823,8 @@ mark.hl, .sr-hit mark { background: color-mix(in srgb, var(--accent) 30%, transp
 .update-card .uc-icon { color: var(--accent); display: flex; }
 .update-card .uc-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .update-card .uc-text small { color: var(--text-muted); }
+
+/* faixa de conflito de sincronização (conflicts.js) */
+.conflict-bar { display: flex; align-items: center; gap: 10px; margin: 0 16px 8px; padding: 8px 12px; border-radius: var(--radius); border: 1px solid color-mix(in srgb, #f59e0b 45%, var(--border)); background: color-mix(in srgb, #f59e0b 12%, var(--bg-2)); font-size: 13px; color: var(--text); }
+.conflict-bar svg { color: #f59e0b; flex-shrink: 0; }
+.conflict-bar span { flex: 1; min-width: 0; }

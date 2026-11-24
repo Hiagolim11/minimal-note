@@ -277,7 +277,7 @@ handle('settings:get', async () => settings);
 handle('settings:set', async (data) => {
   if (!data || typeof data !== 'object') throw new Error('Configurações inválidas');
   const hadCapture = settings.quickCapture;
-  settings = { ...data, vaultPath: settings.vaultPath, windowBounds: settings.windowBounds };
+  settings = { ...data, vaultPath: settings.vaultPath, windowBounds: settings.windowBounds, lastBackup: settings.lastBackup };
   await saveSettings();
   if (hadCapture !== settings.quickCapture) registerCapture();
   return true;
@@ -409,8 +409,54 @@ handle('vault:open', async (dir) => {
   settings.vaultPath = vaultRoot;
   await saveSettings();
   startWatcher();
+  scheduleAutoBackup();
   return { root: vaultRoot, name: path.basename(vaultRoot) };
 });
+
+// ---------- backup (.zip) ----------
+// Um .zip por dia (se "Backup automático" estiver ligado) em Documentos/Minimal Note Backups/<cofre>,
+// fora do cofre, guardando os 7 mais recentes. Inclui notas, anexos e .minimal-note (histórico,
+// dicionário); deixa de fora a .lixeira, temporários e links simbólicos.
+const { writeZip } = require('./src/node/zip.js');
+const BACKUP_KEEP = 7, DAY = 86400000;
+const backupDir = () => (TEST_MODE && process.env.LUMEN_BACKUP_DIR) || path.join(app.getPath('documents'), 'Minimal Note Backups', path.basename(vaultRoot));
+async function vaultFiles(dirAbs, skip, acc = []) {
+  for (const e of await fs.readdir(dirAbs, { withFileTypes: true })) {
+    const abs = path.join(dirAbs, e.name);
+    if (e.isSymbolicLink() || e.name === '.lixeira' || e.name.endsWith('.lumen-tmp') || e.name === 'node_modules' || abs === skip) continue;
+    if (e.isDirectory()) await vaultFiles(abs, skip, acc);
+    else if (e.isFile()) acc.push(abs);
+  }
+  return acc;
+}
+async function backupVault() {
+  if (!vaultRoot) throw new Error('Nenhum cofre aberto');
+  const root = path.resolve(vaultRoot), dir = path.resolve(backupDir());
+  const files = await vaultFiles(root, dir); // se a pasta de backups estiver dentro do cofre, não entra no zip
+  await fs.mkdir(dir, { recursive: true });
+  const d = new Date();
+  const out = path.join(dir, `Minimal Note ${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}.zip`);
+  const r = await writeZip(out, files.map((abs) => ({ name: path.relative(root, abs).split(path.sep).join('/'), read: () => fs.readFile(abs), mtime: fsSync.statSync(abs).mtime })));
+  const zips = (await fs.readdir(dir)).filter((n) => /^Minimal Note .+\.zip$/.test(n)).sort();
+  for (const n of zips.slice(0, -BACKUP_KEEP)) await fs.rm(path.join(dir, n), { force: true });
+  settings.lastBackup = { ...(settings.lastBackup || {}), [root]: Date.now() };
+  await saveSettings();
+  return { files: r.files, path: out, dir };
+}
+let backupTimer = null;
+function scheduleAutoBackup() {
+  clearTimeout(backupTimer);
+  // um tempo depois de abrir o cofre, para não pesar na abertura; depois confere de hora em hora
+  backupTimer = setTimeout(async function tick() {
+    try {
+      const last = settings.lastBackup?.[path.resolve(vaultRoot)] || 0;
+      if (settings.autoBackup !== false && Date.now() - last >= DAY) { const r = await backupVault(); win?.webContents.send('backup:done', r); }
+    } catch (err) { console.error('Backup automático falhou:', err.message); }
+    backupTimer = setTimeout(tick, 3600000);
+  }, Number(TEST_MODE && process.env.LUMEN_BACKUP_DELAY) || 60000);
+}
+handle('vault:backup', async () => backupVault());
+handle('vault:backupDir', async () => { const dir = backupDir(); await fs.mkdir(dir, { recursive: true }); await shell.openPath(dir); return dir; });
 
 handle('vault:choose', async () => {
   const r = await dialog.showOpenDialog(win, {

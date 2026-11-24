@@ -65,4 +65,11 @@ out=$(bash test/e2e/run.sh test/e2e/history.js)
 check history "$out" 'guardadas: [\"versão 1\",\"versão 2\"]' '{\"tela\":\"versão 1\",\"disco\":\"versão 1\",\"historico\":[\"versão 1\",\"versão 2\",\"versão 3\"]}' '{\"novo\":3,\"antigo\":0}' '{\"vazouTextoAberto\":false,\"vazouVersoesAntigas\":false,\"ultimaCifrada\":true}' '{\"tela\":\"segredo girassol\",\"discoCifrado\":true,\"disco\":\"segredo girassol\"}'
 out=$(LUMEN_UPDATE_URL=http://127.0.0.1:47125/latest bash test/e2e/run.sh test/e2e/updates.js 'node test/e2e/update-server.js')
 check updates "$out" '{\"aviso\":\"Versão 9.9.9 disponível | Você está na ' '{\"fechado\":true,\"dispensada\":\"9.9.9\"}' '{\"temNova\":true,\"avisoDeNovo\":false}' 'manual mostra: true' '| opção: true' 'update-server: 3 consultas'
+out=$(bash test/e2e/run.sh test/e2e/conflicts.js)
+check conflicts "$out" '{\"faixa\":true,\"texto\":\"1 versão(ões) em conflito desta nota (Syncthing · 24/11 10:15)' '{\"disco\":\"versão do celular\",\"tela\":\"versão do celular\",\"copiaSumiu\":true,\"historico\":[\"versão daqui\"],\"faixa\":false}' '{\"faixaAntes\":true,\"disco\":\"versão do celular\",\"copiaSumiu\":true,\"faixaDepois\":false}'
+BK=$(mktemp -d); out=$(LUMEN_BACKUP_DIR="$BK" LUMEN_BACKUP_DELAY=3000 bash test/e2e/run.sh test/e2e/backup.js)
+check backup "$out" 'automático: [8]' 'manuais: 8' 'aviso: Backup pronto: 8 arquivos'
+n=$(find "$BK" -name '*.zip' | wc -l); [ "$n" = 7 ] || { echo "✖ backup: $n arquivos .zip (esperado: os 7 mais recentes)"; fail=1; }
+python3 -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); n=z.namelist(); assert z.testzip() is None and 'Pasta/Ação.md' in n and not any('.lixeira' in x for x in n) and any('historico' in x for x in n), n" "$(find "$BK" -name '*.zip' | sort | tail -1)" || { echo "✖ backup: conteúdo do .zip"; fail=1; }
+rm -rf "$BK"
 exit $fail
