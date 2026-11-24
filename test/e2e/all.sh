@@ -55,7 +55,7 @@ out=$(bash test/e2e/run.sh test/e2e/templates-seed.js)
 check templates-seed "$out" '\"modelos\":[\"Diário\",\"Leitura\",\"Projeto\",\"Reunião\"],\"marcado\":true,\"avisos\":[]' '{\"noGrafo\":0' 'depois de apagar e reabrir: 0'
 out=$(bash test/e2e/run.sh test/e2e/protect-review.js 'node test/e2e/lt-server.js')
 check protect-review "$out" 'protegida: true' '{\"aberto\":true,\"titulo\":\"Revisar nota protegida?\"}' 'lt-server: 1 pedidos'
-out=$(bash test/e2e/run.sh test/e2e/trash.js)
+out=$(LUMEN_NO_SYSTEM_TRASH=1 bash test/e2e/run.sh test/e2e/trash.js)
 check trash "$out" '\"onde\":[\"vault\",\"vault\"],\"naLixeira\":2,\"naArvore\":false,\"notas\":[]' '{\"linha\":true,\"texto\":\"2 itens\"}' 'depois de esvaziar: 0' 'linha visível com lixeira vazia: false'
 out=$(bash test/e2e/run.sh test/e2e/capture-protected.js)
 check capture-protected "$out" 'protegida: true' 'é protegida por senha: salve como nota nova' '\"continuaCifrada\":true,\"textoAbertoNoArquivo\":false' 'modo nota: Notas rápidas/nota avulsa.md'

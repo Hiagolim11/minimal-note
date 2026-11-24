@@ -508,6 +508,8 @@ handle('fs:delete', async (rel) => {
   if (abs === path.resolve(vaultRoot)) throw new Error('Não é possível apagar o cofre');
   markSelf(abs);
   try {
+    // (o modo de teste pode simular um local sem lixeira do sistema, como um pendrive)
+    if (TEST_MODE && process.env.LUMEN_NO_SYSTEM_TRASH) throw new Error('sem lixeira do sistema (teste)');
     await shell.trashItem(abs); // vai para a lixeira, recuperável
     return 'system';
   } catch {

@@ -1,4 +1,4 @@
-// Sem lixeira do sistema (cofre de teste em /tmp, como um pendrive): excluir vai para .lixeira do cofre,
+// Sem lixeira do sistema (LUMEN_NO_SYSTEM_TRASH=1 simula um pendrive; /tmp tem lixeira em alguns sistemas): excluir vai para .lixeira do cofre,
 // sem um item sobrescrever outro de mesmo nome; a pasta não aparece na árvore; dá para esvaziar.
 const sleep = (ms) => `await new Promise((r) => setTimeout(r, ${ms}))`;
 module.exports = [
